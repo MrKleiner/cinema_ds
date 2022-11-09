@@ -1,0 +1,20 @@
+{
+	"keydown": [
+		{
+			"selector": "body",
+			"function": "$all.main.open_pool_via_keybind",
+			"pass_event": true,
+			"pass_element": false,
+			"pass_params": ""
+		}
+	],
+	"scroll": [
+		{
+			"selector": "#cinema_ds_main_window #cinemads_media_pool",
+			"function": "$all.main.scroll_watcher",
+			"pass_event": false,
+			"pass_element": true,
+			"pass_params": ""
+		}
+	]
+}

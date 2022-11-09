@@ -1,0 +1,141 @@
+// config files for bootlegger can have LINE comments BUT NOT additive comments:
+// good: // comment
+// bad: "mdn": "link", // link to MDN
+
+// regular slashes in file paths are allowed and encouraged:
+// C:/custom/pepega/pepega/mods
+
+{
+	// minimal requirement: path to the folder containing folders with modules
+	// the required structure is:
+	// - root_folder
+	// 		- module_name
+	//		- module_name
+	//		- module_name
+	//			- file1.js
+	//			- file2.js
+	//			- file1.css
+	//			- file2.css
+	//		- module_name
+	"jsmodules": "mods",
+
+	// minimal requirement: function pool name (where to store all the functions)
+	"sys_name": "cinema_ds",
+
+	// explicitly define the module order.
+	// the specified modules are put in order and then unspecified modules are added
+	// if module does not exist - ignore
+	// only counts if points to a valid destination. Otherwise - ignore.
+	"modules_order": [
+		"core"
+	],
+
+	// Path to the root folder containing modules folder, variables, fonts, etc
+	// If not present, false, empty, null or invalid - each path field would require an absolute path
+	// otherwise - hybrid: If absoulte, then use absolute, if relative then use relative
+	"project": "C:/custom/cinema_ds",
+
+	// folder name with compiled modules
+	// auto = use original modules folder name
+	"writename": "auto",
+
+	// 0: dont do anything
+	// 1: collapse lines which start with //
+	// 2: collapse empty lines
+	// 3: comments and empty lines
+
+	// this does not account for strings or anything
+	"collapse": 1,
+
+	// This is ignored if writename is specified
+	// If writename is not specified then this suffix is added 
+	// to the name of the folder cotaining compiled modules
+	// auto = the same as not specifying this parameter
+	"writesuffix": "auto",
+
+	// if this is set to true then it means that only onefile should be generated
+	"onlyfile": false,
+
+	// the onefile option, if present, specifies that the whole thing should additionaly be compiled into a single file
+	"onefile": {
+		
+		// where to put the compiled onefile thing.
+		// if not present or false - the file is being output to the root directory of the modules folder
+		"output_to": false,
+
+
+		// path to the file to use as the header of the entire file
+		// only counts if points to a valid file. Otherwise - ignore.
+		"file_header": "header.js",
+
+		// path to the file to use as the header AFTER vars declaration and library links
+		// only counts if points to a valid file. Otherwise - ignore.
+		"code_header": false,
+
+		// put the contents of this file in the very bottom of the resulting file
+		// only counts if points to a valid file. Otherwise - ignore.
+		"file_footer": false,
+
+		// whether to sign libraries with their folder names or not
+		"sign_libs": true,
+
+		// whether to include beautiful ascii shite or not
+		// default to True
+		"art": true,
+
+		// folder containing folders with libraries to include in the file
+		// only counts if present, not false, not empty and not null
+		"libs": "libs",
+
+
+		// Only counts if present, not false, not empty and not null
+		// then this should contain subpaths to the libraries, aka "jquery/3_6_0/jquery.min.js"
+		
+		// this option is additive: Entries present in this array will be ignored
+		// when traversing through the "libs" parameter
+		
+		// the root of the subpath will be used as the library name
+		// ignored if invalid
+		"libs_order": [],
+
+
+		// only counts if present, not false, not empty and not null
+		// manually add libraries
+		// (lame shit)
+		// only useful when adding libs from online
+		"add_libs": [
+			{
+				"type": "url",
+				"src": "https://cdn.jsdelivr.net/gh/MrKleiner/liz3_toybox_webtools@latest/sex_toys/shared/toolbox.min.js",
+				"name": "lizard"
+			}
+		],
+
+
+		// only counts if present, not false, not empty and not null
+		// add fonts as binaries
+		// should point to a folder with a number of subfolders where each file is a font:
+		// font_name(doesnt matter).weight.style.ttf/woff/whatever
+		// e.g. 400.italic.ttf
+		// folder name is used as the font family name
+		"bin_fonts": "",
+		"bin_fonts_b64": false,
+
+
+		// only counts if present, not false, not empty and not null
+		// should point to a folder where each file:
+		// location.location.varname.text/bytes/bytes_raw/json.decorator(any extension)
+		// location is relative to const btg = {}
+		"variables": "assets"
+	},
+
+	// it's possible to sync the processed stuff with a remote destination
+	// bootlegger server has to be running on the other side
+	// coming soon: raw TCP sync for better performance
+	"sync": {}
+}
+
+
+
+
+
