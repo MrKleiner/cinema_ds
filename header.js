@@ -2,7 +2,7 @@
 // @name         cinema_ds
 // @namespace    http://tampermonkey.net/
 // @version      0.17
-// @description  A Discord addon which transforms server/dm, channels into image strips 
+// @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @match        https://discord.com/*
 // @match        https://discord.gg/*
@@ -21,7 +21,7 @@
 
 
 // ======================================================================
-// Discord unbinds local storage methods to make the token inaccessible
+// Discord unbinds local storage methods to make the token unaccessible
 // ======================================================================
 
 // simply make the Tampermonkey script launch BEFORE discord...

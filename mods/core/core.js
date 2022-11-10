@@ -208,4 +208,4 @@ localStorage.getItem = function(item)
 
 
 // when url changes - flush stuff and load new
-window.addEventListener('urlchange', (info) => $all.main.url_switch());
+// window.addEventListener('urlchange', (info) => $all.main.url_switch());

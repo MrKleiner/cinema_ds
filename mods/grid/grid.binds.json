@@ -1,0 +1,25 @@
+{
+	"click": [
+		{
+			"selector": "#cinema_ds_main_window #cinemads_pages #cinemads_page_next",
+			"function": "$this.load_next_page",
+			"pass_event": false,
+			"pass_element": false,
+			"pass_params": ""
+		},
+		{
+			"selector": "#cinema_ds_main_window .cinema_ds_img_entry",
+			"function": "$this.maximize_image",
+			"pass_event": false,
+			"pass_element": true,
+			"pass_params": ""
+		},
+		{
+			"selector": "#cinema_ds_fullscreen",
+			"function": "$('body #cinema_ds_fullscreen').remove",
+			"pass_event": false,
+			"pass_element": false,
+			"pass_params": ""
+		}
+	]
+}

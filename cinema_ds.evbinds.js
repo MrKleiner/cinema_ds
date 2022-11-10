@@ -1,3 +1,18 @@
+document.addEventListener('click', tr_event => {
+
+
+	// ==========================================
+	// 	grid grid
+	// ==========================================
+
+	if (event.target.closest('#cinema_ds_main_window #cinemads_pages #cinemads_page_next')){window.bootlegger.grid.load_next_page()}
+	if (event.target.closest('#cinema_ds_main_window .cinema_ds_img_entry')){window.bootlegger.grid.maximize_image(event.target.closest('#cinema_ds_main_window .cinema_ds_img_entry'))}
+	if (event.target.closest('#cinema_ds_fullscreen')){$('body #cinema_ds_fullscreen').remove()}
+
+
+});
+
+
 document.addEventListener('keydown', tr_event => {
 
 

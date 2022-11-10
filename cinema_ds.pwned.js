@@ -35,7 +35,7 @@
 // @name         cinema_ds
 // @namespace    http://tampermonkey.net/
 // @version      0.17
-// @description  A Discord addon which transforms server/dm, channels into image strips 
+// @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @match        https://discord.com/*
 // @match        https://discord.gg/*
@@ -54,7 +54,7 @@
 
 
 // ======================================================================
-// Discord unbinds local storage methods to make the token inaccessible
+// Discord unbinds local storage methods to make the token unaccessible
 // ======================================================================
 
 // simply make the Tampermonkey script launch BEFORE discord...
@@ -107,17 +107,188 @@ const ds_token = window.localStorage['token'].replaceAll('"', '');
 
 
 
-//       ::::::::::           :::        :::    :::       :::::::::: 
-//      :+:                :+: :+:      :+:   :+:        :+:         
-//     +:+               +:+   +:+     +:+  +:+         +:+          
-//    :#::+::#         +#++:++#++:    +#++:++          +#++:++#      
-//   +#+              +#+     +#+    +#+  +#+         +#+            
-//  #+#              #+#     #+#    #+#   #+#        #+#             
-// ###              ###     ###    ###    ###       ##########       
+//       ::::::::::       :::::::::::       :::        ::::::::::       ::::::::           :::     :::     :::       ::::::::::       ::::::::: 
+//      :+:                  :+:           :+:        :+:             :+:    :+:        :+: :+:   :+:     :+:       :+:              :+:    :+: 
+//     +:+                  +:+           +:+        +:+             +:+              +:+   +:+  +:+     +:+       +:+              +:+    +:+  
+//    :#::+::#             +#+           +#+        +#++:++#        +#++:++#++      +#++:++#++: +#+     +:+       +#++:++#         +#++:++#:    
+//   +#+                  +#+           +#+        +#+                    +#+      +#+     +#+  +#+   +#+        +#+              +#+    +#+    
+//  #+#                  #+#           #+#        #+#             #+#    #+#      #+#     #+#   #+#+#+#         #+#              #+#    #+#     
+// ###              ###########       ########## ##########       ########       ###     ###     ###           ##########       ###    ###      
 // 
 
 
+/*
+* FileSaver.js
+* A saveAs() FileSaver implementation.
+*
+* By Eli Grey, http://eligrey.com
+*
+* License : https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md (MIT)
+* source  : http://purl.eligrey.com/github/FileSaver.js
+*/
 
+// The one and only way of getting global scope in all environments
+// https://stackoverflow.com/q/3277182/1008999
+var _global = typeof window === 'object' && window.window === window
+  ? window : typeof self === 'object' && self.self === self
+  ? self : typeof global === 'object' && global.global === global
+  ? global
+  : this
+
+function bom (blob, opts) {
+  if (typeof opts === 'undefined') opts = { autoBom: false }
+  else if (typeof opts !== 'object') {
+    console.warn('Deprecated: Expected third argument to be a object')
+    opts = { autoBom: !opts }
+  }
+
+  // prepend BOM for UTF-8 XML and text/* types (including HTML)
+  // note: your browser will automatically convert UTF-16 U+FEFF to EF BB BF
+  if (opts.autoBom && /^\s*(?:text\/\S*|application\/xml|\S*\/\S*\+xml)\s*;.*charset\s*=\s*utf-8/i.test(blob.type)) {
+    return new Blob([String.fromCharCode(0xFEFF), blob], { type: blob.type })
+  }
+  return blob
+}
+
+function download (url, name, opts) {
+  var xhr = new XMLHttpRequest()
+  xhr.open('GET', url)
+  xhr.responseType = 'blob'
+  xhr.onload = function () {
+    saveAs(xhr.response, name, opts)
+  }
+  xhr.onerror = function () {
+    console.error('could not download file')
+  }
+  xhr.send()
+}
+
+function corsEnabled (url) {
+  var xhr = new XMLHttpRequest()
+  // use sync to avoid popup blocker
+  xhr.open('HEAD', url, false)
+  try {
+    xhr.send()
+  } catch (e) {}
+  return xhr.status >= 200 && xhr.status <= 299
+}
+
+// `a.click()` doesn't work for all browsers (#465)
+function click (node) {
+  try {
+    node.dispatchEvent(new MouseEvent('click'))
+  } catch (e) {
+    var evt = document.createEvent('MouseEvents')
+    evt.initMouseEvent('click', true, true, window, 0, 0, 0, 80,
+                          20, false, false, false, false, 0, null)
+    node.dispatchEvent(evt)
+  }
+}
+
+// Detect WebView inside a native macOS app by ruling out all browsers
+// We just need to check for 'Safari' because all other browsers (besides Firefox) include that too
+// https://www.whatismybrowser.com/guides/the-latest-user-agent/macos
+var isMacOSWebView = _global.navigator && /Macintosh/.test(navigator.userAgent) && /AppleWebKit/.test(navigator.userAgent) && !/Safari/.test(navigator.userAgent)
+
+var saveAs = _global.saveAs || (
+  // probably in some web worker
+  (typeof window !== 'object' || window !== _global)
+    ? function saveAs () { /* noop */ }
+
+  // Use download attribute first if possible (#193 Lumia mobile) unless this is a macOS WebView
+  : ('download' in HTMLAnchorElement.prototype && !isMacOSWebView)
+  ? function saveAs (blob, name, opts) {
+    var URL = _global.URL || _global.webkitURL
+    // Namespace is used to prevent conflict w/ Chrome Poper Blocker extension (Issue #561)
+    var a = document.createElementNS('http://www.w3.org/1999/xhtml', 'a')
+    name = name || blob.name || 'download'
+
+    a.download = name
+    a.rel = 'noopener' // tabnabbing
+
+    // TODO: detect chrome extensions & packaged apps
+    // a.target = '_blank'
+
+    if (typeof blob === 'string') {
+      // Support regular links
+      a.href = blob
+      if (a.origin !== location.origin) {
+        corsEnabled(a.href)
+          ? download(blob, name, opts)
+          : click(a, a.target = '_blank')
+      } else {
+        click(a)
+      }
+    } else {
+      // Support blobs
+      a.href = URL.createObjectURL(blob)
+      setTimeout(function () { URL.revokeObjectURL(a.href) }, 4E4) // 40s
+      setTimeout(function () { click(a) }, 0)
+    }
+  }
+
+  // Use msSaveOrOpenBlob as a second approach
+  : 'msSaveOrOpenBlob' in navigator
+  ? function saveAs (blob, name, opts) {
+    name = name || blob.name || 'download'
+
+    if (typeof blob === 'string') {
+      if (corsEnabled(blob)) {
+        download(blob, name, opts)
+      } else {
+        var a = document.createElement('a')
+        a.href = blob
+        a.target = '_blank'
+        setTimeout(function () { click(a) })
+      }
+    } else {
+      navigator.msSaveOrOpenBlob(bom(blob, opts), name)
+    }
+  }
+
+  // Fallback to using FileReader and a popup
+  : function saveAs (blob, name, opts, popup) {
+    // Open a popup immediately do go around popup blocker
+    // Mostly only available on user interaction and the fileReader is async so...
+    popup = popup || open('', '_blank')
+    if (popup) {
+      popup.document.title =
+      popup.document.body.innerText = 'downloading...'
+    }
+
+    if (typeof blob === 'string') return download(blob, name, opts)
+
+    var force = blob.type === 'application/octet-stream'
+    var isSafari = /constructor/i.test(_global.HTMLElement) || _global.safari
+    var isChromeIOS = /CriOS\/[\d]+/.test(navigator.userAgent)
+
+    if ((isChromeIOS || (force && isSafari) || isMacOSWebView) && typeof FileReader !== 'undefined') {
+      // Safari doesn't allow downloading of blob URLs
+      var reader = new FileReader()
+      reader.onloadend = function () {
+        var url = reader.result
+        url = isChromeIOS ? url : url.replace(/^data:[^;]*;/, 'data:attachment/file;')
+        if (popup) popup.location.href = url
+        else location = url
+        popup = null // reverse-tabnabbing #460
+      }
+      reader.readAsDataURL(blob)
+    } else {
+      var URL = _global.URL || _global.webkitURL
+      var url = URL.createObjectURL(blob)
+      if (popup) popup.location = url
+      else location.href = url
+      popup = null // reverse-tabnabbing #460
+      setTimeout(function () { URL.revokeObjectURL(url) }, 4E4) // 40s
+    }
+  }
+)
+
+_global.saveAs = saveAs.saveAs = saveAs
+
+if (typeof module !== 'undefined') {
+  module.exports = saveAs;
+}
 
 
 
@@ -143,8 +314,8 @@ const ds_token = window.localStorage['token'].replaceAll('"', '');
  *
  * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
  */
-class iguana{constructor(){this.gigastorage={},this.gigastorage.waiters={},String.prototype.capitalize=function(){return this.charAt(0).toUpperCase()+this.slice(1)},String.prototype.lower=function(){return this.toLowerCase()},String.prototype.upper=function(){return this.toUpperCase()},String.prototype.zfill=function(t=1,e="0"){var r=void 0!==e?e:"0",n=new Array(1+t).join(r);return(n+this).slice(-n.length)},String.prototype.rstrip=function(t=""){for(var e=this.length-1;t.indexOf(this[e])>=0;)e-=1;return this.substr(0,e+1)},String.prototype.lstrip=function(t=""){for(var e=0;t.indexOf(x[e])>=0;)e+=1;x.length;return x.substr(e)},String.prototype.strip=function(t=""){for(var e=0;t.indexOf(this[e])>=0;)e+=1;for(var r=this.length-1;t.indexOf(this[r])>=0;)r-=1;return this.substr(e,r-e+1)},Number.prototype.clamp=function(t,e){return Math.min(Math.max(this,t),e)};const t=window.URL?"URL":"webkitURL";class e extends(window.URL||window.webkitURL){get target(){return{name:this.pathname.split("/").at(-1),suffix:this.pathname.split("/").at(-1).split(".").at(-1)}}}function r(t){try{return t.toString()}catch(e){return""+t}}window[t]=e,window.str=r,window.int=function(t){return parseInt(t)},window.float=function(t){return parseFloat(t)},window.range=function*(t=0,e=null,r=1){null==e&&(e=t,t=0);try{t=parseInt(t),e=parseInt(e),r=parseInt(r)}catch(t){return[]}for(;;){if(t>=e)return;yield t,t+=r}},window.localStorage.__proto__.getObject=function(t){const e=window.localStorage.getItem(t);try{return JSON.parse(e)}catch(t){return e}},window.localStorage.__proto__.setObject=function(t,e){try{window.localStorage.setItem(t,JSON.stringify(e))}catch(r){window.localStorage.setItem(t,e)}}}get info(){return"Lizard's toybox. Version 0.37"}find_objects(t,e,r){var n=[];for(var o in t)t.hasOwnProperty(o)&&("object"==typeof t[o]?n=n.concat(this.find_objects(t[o],e,r)):(o==e&&t[o]==r||o==e&&""==r||t[o]==r&&""==e&&-1==n.lastIndexOf(t))&&n.push(t));return n}find_values(t,e){var r=[];for(var n in t)t.hasOwnProperty(n)&&("object"==typeof t[n]?r=r.concat(this.find_values(t[n],e)):n==e&&r.push(t[n]));return r}find_keys(t,e){var r=[];for(var n in t)t.hasOwnProperty(n)&&("object"==typeof t[n]?r=r.concat(this.find_keys(t[n],e)):t[n]==e&&r.push(n));return r}rndwave(t=8,e="def",r="",n=!0){var o="",i=r.toString().replaceAll(" ","");switch(e){case"flac":var a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-()=+*#/!&?<>$~"+i;break;case"num":a="1234567890"+i;break;case"def":a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"+i;break;default:a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"+i}var s=a.length;if(1==n)var c=window.crypto.getRandomValues(new Uint32Array(t+1));for(var u=0;u<t;u++)o+=1==n?a.charAt(c[u]%s):a.charAt(Math.floor(Math.random()*s));return o}cookie_set(t,e,r){if(void 0===t||"undefined"==e||"undefined"==r)return void console.log("lizard's biscuits lack chocolate!");const n=new Date;n.setTime(n.getTime()+24*r*60*60*1e3);let o="expires="+n.toUTCString();document.cookie=t+"="+e+";"+o+";path=/"}cookie_get(t){let e=t+"=",r=document.cookie.split(";");for(let t=0;t<r.length;t++){let n=r[t];for(;" "==n.charAt(0);)n=n.substring(1);if(0==n.indexOf(e))return n.substring(e.length,n.length)}return""}imtext(t){for(var e=t,r="",n=0;n<e.childNodes.length;++n)e.childNodes[n].nodeType===Node.TEXT_NODE&&(r+=e.childNodes[n].textContent);return r}copytext(t){var e=$('<input style="opacity: 0;position: absolute;">');$("body").append(e),e.val(t).select(),document.execCommand("copy"),e.remove()}rgb2hex(t){function e(t){return("0"+parseInt(t).toString(16)).slice(-2)}return"#"+e((t=t.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/))[1])+e(t[2])+e(t[3])}clamp(t=3,e=0,r=5){return t<=e?e:t>=r?r:t}textdl(t="lizard.txt",e="iguana"){var r=document.createElement("a");r.setAttribute("href","data:text/plain;charset=utf-8,"+encodeURIComponent(e)),r.setAttribute("download",t),r.style.display="none",document.body.appendChild(r),r.click(),document.body.removeChild(r)}b64ToUint6(t){return t>64&&t<91?t-65:t>96&&t<123?t-71:t>47&&t<58?t+4:43===t?62:47===t?63:0}base64DecToArr(t,e){for(var r,n,o=t.replace(/[^A-Za-z0-9\+\/]/g,""),i=o.length,a=e?Math.ceil((3*i+1>>2)/e)*e:3*i+1>>2,s=new Uint8Array(a),c=0,u=0,l=0;l<i;l++)if(n=3&l,c|=this.b64ToUint6(o.charCodeAt(l))<<6*(3-n),3===n||i-l==1){for(r=0;r<3&&u<a;r++,u++)s[u]=c>>>(16>>>r&24)&255;c=0}return s}uint6ToB64(t){return t<26?t+65:t<52?t+71:t<62?t-4:62===t?43:63===t?47:65}base64EncArr(t){for(var e=2,r="",n=t.length,o=0,i=0;i<n;i++)e=i%3,i>0&&4*i/3%76==0&&(r+=""),o|=t[i]<<(16>>>e&24),2!==e&&t.length-i!=1||(r+=String.fromCodePoint(this.uint6ToB64(o>>>18&63),this.uint6ToB64(o>>>12&63),this.uint6ToB64(o>>>6&63),this.uint6ToB64(63&o)),o=0);return r.substr(0,r.length-2+e)+(2===e?"":1===e?"=":"==")}UTF8ArrToStr(t){for(var e,r="",n=t.length,o=0;o<n;o++)e=t[o],r+=String.fromCodePoint(e>251&&e<254&&o+5<n?1073741824*(e-252)+(t[++o]-128<<24)+(t[++o]-128<<18)+(t[++o]-128<<12)+(t[++o]-128<<6)+t[++o]-128:e>247&&e<252&&o+4<n?(e-248<<24)+(t[++o]-128<<18)+(t[++o]-128<<12)+(t[++o]-128<<6)+t[++o]-128:e>239&&e<248&&o+3<n?(e-240<<18)+(t[++o]-128<<12)+(t[++o]-128<<6)+t[++o]-128:e>223&&e<240&&o+2<n?(e-224<<12)+(t[++o]-128<<6)+t[++o]-128:e>191&&e<224&&o+1<n?(e-192<<6)+t[++o]-128:e);return r}strToUTF8Arr(t){for(var e,r,n=t.length,o=0,i=0;i<n;i++)(r=t.codePointAt(i))>65536&&i++,o+=r<128?1:r<2048?2:r<65536?3:r<2097152?4:r<67108864?5:6;e=new Uint8Array(o);for(var a=0,s=0;a<o;s++)(r=t.codePointAt(s))<128?e[a++]=r:r<2048?(e[a++]=192+(r>>>6),e[a++]=128+(63&r)):r<65536?(e[a++]=224+(r>>>12),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r)):r<2097152?(e[a++]=240+(r>>>18),e[a++]=128+(r>>>12&63),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r),s++):r<67108864?(e[a++]=248+(r>>>24),e[a++]=128+(r>>>18&63),e[a++]=128+(r>>>12&63),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r),s++):(e[a++]=252+(r>>>30),e[a++]=128+(r>>>24&63),e[a++]=128+(r>>>18&63),e[a++]=128+(r>>>12&63),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r),s++);return e}btoa(t=""){return""==t?"":base64EncArr(this.strToUTF8Arr(t))}atob(t=""){return""==t?"":UTF8ArrToStr(this.base64DecToArr(t))}u8btoa(t){return btoa(unescape(encodeURIComponent(t)))}u8atob(t){return decodeURIComponent(escape(atob(t)))}rmdupli(t){return Array.from(new Set(t))}ehtml(t){var e=document.createElement("div");return e.innerHTML=t,e.children[0]}wait_elem(t=null,e=null){if(null==t)return!1;var r=this;const n=t;var o=e||this.rndwave(32,"def").replaceAll("-","").replaceAll("_","");return{name:o,wait:function(){return new Promise((function(t,e){const i=n;var a=new MutationObserver(((e,r)=>{var n=document.querySelector(i);null!=n&&(r.disconnect(),t(n))}));a.observe(document.body,{attributes:!0,childList:!0,subtree:!0}),r.gigastorage.waiters[o]=a}))},abort:function(){r.gigastorage.waiters[o].disconnect()}}}delnthchar(t,e,r){if(""==t.toString())return"";if(Array.isArray(t))var n=t;else n=t.toString().split("");var o=1,i=[];for(var a in n)if(r)if(o!=e)o+=1;else{i.push(n[a]);o=1}else if(o!=e)i.push(n[a]),o+=1;else o=1;return i.join("")}array_is_same(t=[],e=[],r=!1){var n=t.filter((t=>!e.includes(t)));return 1==r?n:n.length>0}b64toimg(t="",e="*"){if(""==t)return null;var r=this.base64DecToArr(t),n=new Blob([r],{type:`image/${e}`});return(window.URL||window.webkitURL).createObjectURL(n)}}window.lizard=new iguana;
-//# sourceMappingURL=/sm/41147738f644494f5814158babe9b3f45911ed14b3fe2e01cf008ac08b3d484c.map
+class iguana{constructor(){this.gigastorage={},this.gigastorage.waiters={},String.prototype.capitalize=function(){return this.charAt(0).toUpperCase()+this.slice(1)},String.prototype.lower=function(){return this.toLowerCase()},String.prototype.upper=function(){return this.toUpperCase()},String.prototype.zfill=function(t=1,e="0"){var r=void 0!==e?e:"0",n=new Array(1+t).join(r);return(n+this).slice(-n.length)},String.prototype.rstrip=function(t=""){for(var e=this.length-1;t.indexOf(this[e])>=0;)e-=1;return this.substr(0,e+1)},String.prototype.lstrip=function(t=""){for(var e=0;t.indexOf(x[e])>=0;)e+=1;x.length;return x.substr(e)},String.prototype.strip=function(t=""){for(var e=0;t.indexOf(this[e])>=0;)e+=1;for(var r=this.length-1;t.indexOf(this[r])>=0;)r-=1;return this.substr(e,r-e+1)},Number.prototype.clamp=function(t,e){return Math.min(Math.max(this,t),e)};const t=window.URL?"URL":"webkitURL";class e extends(window.URL||window.webkitURL){get target(){const t=this.pathname.split("/");return{name:t.at(-1)||null,suffix:t.at(-1).split(".").at(-1)||null,stem:t.at(-1).split(".").pop()||null,stem_raw:t.at(-1).split(".")[0]||null}}}function r(t){try{return t.toString()}catch(e){return""+t}}window[t]=e,window.str=r,window.int=function(t){return parseInt(t)},window.float=function(t){return parseFloat(t)},window.range=function*(t=0,e=null,r=1){null==e&&(e=t,t=0);try{t=parseInt(t),e=parseInt(e),r=parseInt(r)}catch(t){return[]}for(;;){if(t>=e)return;yield t,t+=r}},window.localStorage.__proto__.getObject=function(t){const e=window.localStorage.getItem(t);try{return JSON.parse(e)}catch(t){return e}},window.localStorage.__proto__.setObject=function(t,e){try{window.localStorage.setItem(t,JSON.stringify(e))}catch(r){window.localStorage.setItem(t,e)}}}get info(){return"Lizard's toybox. Version 0.37"}find_objects(t,e,r){var n=[];for(var o in t)t.hasOwnProperty(o)&&("object"==typeof t[o]?n=n.concat(this.find_objects(t[o],e,r)):(o==e&&t[o]==r||o==e&&""==r||t[o]==r&&""==e&&-1==n.lastIndexOf(t))&&n.push(t));return n}find_values(t,e){var r=[];for(var n in t)t.hasOwnProperty(n)&&("object"==typeof t[n]?r=r.concat(this.find_values(t[n],e)):n==e&&r.push(t[n]));return r}find_keys(t,e){var r=[];for(var n in t)t.hasOwnProperty(n)&&("object"==typeof t[n]?r=r.concat(this.find_keys(t[n],e)):t[n]==e&&r.push(n));return r}rndwave(t=8,e="def",r="",n=!0){var o="",i=r.toString().replaceAll(" ","");switch(e){case"flac":var a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-()=+*#/!&?<>$~"+i;break;case"num":a="1234567890"+i;break;case"def":a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"+i;break;default:a="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"+i}var s=a.length;if(1==n)var u=window.crypto.getRandomValues(new Uint32Array(t+1));for(var c=0;c<t;c++)o+=1==n?a.charAt(u[c]%s):a.charAt(Math.floor(Math.random()*s));return o}cookie_set(t,e,r){if(void 0===t||"undefined"==e||"undefined"==r)return void console.log("lizard's biscuits lack chocolate!");const n=new Date;n.setTime(n.getTime()+24*r*60*60*1e3);let o="expires="+n.toUTCString();document.cookie=t+"="+e+";"+o+";path=/"}cookie_get(t){let e=t+"=",r=document.cookie.split(";");for(let t=0;t<r.length;t++){let n=r[t];for(;" "==n.charAt(0);)n=n.substring(1);if(0==n.indexOf(e))return n.substring(e.length,n.length)}return""}imtext(t){for(var e=t,r="",n=0;n<e.childNodes.length;++n)e.childNodes[n].nodeType===Node.TEXT_NODE&&(r+=e.childNodes[n].textContent);return r}copytext(t){var e=$('<input style="opacity: 0;position: absolute;">');$("body").append(e),e.val(t).select(),document.execCommand("copy"),e.remove()}rgb2hex(t){function e(t){return("0"+parseInt(t).toString(16)).slice(-2)}return"#"+e((t=t.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/))[1])+e(t[2])+e(t[3])}clamp(t=3,e=0,r=5){return t<=e?e:t>=r?r:t}textdl(t="lizard.txt",e="iguana"){var r=document.createElement("a");r.setAttribute("href","data:text/plain;charset=utf-8,"+encodeURIComponent(e)),r.setAttribute("download",t),r.style.display="none",document.body.appendChild(r),r.click(),document.body.removeChild(r)}b64ToUint6(t){return t>64&&t<91?t-65:t>96&&t<123?t-71:t>47&&t<58?t+4:43===t?62:47===t?63:0}base64DecToArr(t,e){for(var r,n,o=t.replace(/[^A-Za-z0-9\+\/]/g,""),i=o.length,a=e?Math.ceil((3*i+1>>2)/e)*e:3*i+1>>2,s=new Uint8Array(a),u=0,c=0,l=0;l<i;l++)if(n=3&l,u|=this.b64ToUint6(o.charCodeAt(l))<<6*(3-n),3===n||i-l==1){for(r=0;r<3&&c<a;r++,c++)s[c]=u>>>(16>>>r&24)&255;u=0}return s}uint6ToB64(t){return t<26?t+65:t<52?t+71:t<62?t-4:62===t?43:63===t?47:65}base64EncArr(t){for(var e=2,r="",n=t.length,o=0,i=0;i<n;i++)e=i%3,i>0&&4*i/3%76==0&&(r+=""),o|=t[i]<<(16>>>e&24),2!==e&&t.length-i!=1||(r+=String.fromCodePoint(this.uint6ToB64(o>>>18&63),this.uint6ToB64(o>>>12&63),this.uint6ToB64(o>>>6&63),this.uint6ToB64(63&o)),o=0);return r.substr(0,r.length-2+e)+(2===e?"":1===e?"=":"==")}UTF8ArrToStr(t){for(var e,r="",n=t.length,o=0;o<n;o++)e=t[o],r+=String.fromCodePoint(e>251&&e<254&&o+5<n?1073741824*(e-252)+(t[++o]-128<<24)+(t[++o]-128<<18)+(t[++o]-128<<12)+(t[++o]-128<<6)+t[++o]-128:e>247&&e<252&&o+4<n?(e-248<<24)+(t[++o]-128<<18)+(t[++o]-128<<12)+(t[++o]-128<<6)+t[++o]-128:e>239&&e<248&&o+3<n?(e-240<<18)+(t[++o]-128<<12)+(t[++o]-128<<6)+t[++o]-128:e>223&&e<240&&o+2<n?(e-224<<12)+(t[++o]-128<<6)+t[++o]-128:e>191&&e<224&&o+1<n?(e-192<<6)+t[++o]-128:e);return r}strToUTF8Arr(t){for(var e,r,n=t.length,o=0,i=0;i<n;i++)(r=t.codePointAt(i))>65536&&i++,o+=r<128?1:r<2048?2:r<65536?3:r<2097152?4:r<67108864?5:6;e=new Uint8Array(o);for(var a=0,s=0;a<o;s++)(r=t.codePointAt(s))<128?e[a++]=r:r<2048?(e[a++]=192+(r>>>6),e[a++]=128+(63&r)):r<65536?(e[a++]=224+(r>>>12),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r)):r<2097152?(e[a++]=240+(r>>>18),e[a++]=128+(r>>>12&63),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r),s++):r<67108864?(e[a++]=248+(r>>>24),e[a++]=128+(r>>>18&63),e[a++]=128+(r>>>12&63),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r),s++):(e[a++]=252+(r>>>30),e[a++]=128+(r>>>24&63),e[a++]=128+(r>>>18&63),e[a++]=128+(r>>>12&63),e[a++]=128+(r>>>6&63),e[a++]=128+(63&r),s++);return e}btoa(t=""){return""==t?"":base64EncArr(this.strToUTF8Arr(t))}atob(t=""){return""==t?"":UTF8ArrToStr(this.base64DecToArr(t))}u8btoa(t){return btoa(unescape(encodeURIComponent(t)))}u8atob(t){return decodeURIComponent(escape(atob(t)))}rmdupli(t){return Array.from(new Set(t))}ehtml(t){var e=document.createElement("div");return e.innerHTML=t,e.children[0]}wait_elem(t=null,e=null){if(null==t)return!1;var r=this;const n=t;var o=e||this.rndwave(32,"def").replaceAll("-","").replaceAll("_","");return{name:o,wait:function(){return new Promise((function(t,e){const i=n;var a=new MutationObserver(((e,r)=>{var n=document.querySelector(i);null!=n&&(r.disconnect(),t(n))}));a.observe(document.body,{attributes:!0,childList:!0,subtree:!0}),r.gigastorage.waiters[o]=a}))},abort:function(){r.gigastorage.waiters[o].disconnect()}}}delnthchar(t,e,r){if(""==t.toString())return"";if(Array.isArray(t))var n=t;else n=t.toString().split("");var o=1,i=[];for(var a in n)if(r)if(o!=e)o+=1;else{i.push(n[a]);o=1}else if(o!=e)i.push(n[a]),o+=1;else o=1;return i.join("")}array_is_same(t=[],e=[],r=!1){var n=t.filter((t=>!e.includes(t)));return 1==r?n:n.length>0}b64toimg(t="",e="*"){if(""==t)return null;var r=this.base64DecToArr(t),n=new Blob([r],{type:`image/${e}`});return(window.URL||window.webkitURL).createObjectURL(n)}}window.lizard=new iguana;
+//# sourceMappingURL=/sm/03cc2ed1b200f74302c3e23b199206a7028397f88da46ffaa94f21479768d851.map
 
 
 
@@ -463,7 +634,7 @@ window.bootlegger_sys_funcs = new btg_sys();
 
 
 (function() {
-	var cssb64 = `LyogY3lyaWxsaWMtZXh0ICovCkBmb250LWZhY2UgewogIGZvbnQtZmFtaWx5OiAnSUJNIFBsZXggTW9ubyc7CiAgZm9udC1zdHlsZTogbm9ybWFsOwogIGZvbnQtd2VpZ2h0OiA0MDA7CiAgZm9udC1kaXNwbGF5OiBzd2FwOwogIHNyYzogdXJsKGh0dHBzOi8vZm9udHMuZ3N0YXRpYy5jb20vcy9pYm1wbGV4bW9uby92MTIvLUY2M2ZqcHRBZ3Q1Vk0ta1ZrcWR5VThuMWlJcTEyOWsud29mZjIpIGZvcm1hdCgnd29mZjInKTsKICB1bmljb2RlLXJhbmdlOiBVKzA0NjAtMDUyRiwgVSsxQzgwLTFDODgsIFUrMjBCNCwgVSsyREUwLTJERkYsIFUrQTY0MC1BNjlGLCBVK0ZFMkUtRkUyRjsKfQovKiBjeXJpbGxpYyAqLwpAZm9udC1mYWNlIHsKICBmb250LWZhbWlseTogJ0lCTSBQbGV4IE1vbm8nOwogIGZvbnQtc3R5bGU6IG5vcm1hbDsKICBmb250LXdlaWdodDogNDAwOwogIGZvbnQtZGlzcGxheTogc3dhcDsKICBzcmM6IHVybChodHRwczovL2ZvbnRzLmdzdGF0aWMuY29tL3MvaWJtcGxleG1vbm8vdjEyLy1GNjNmanB0QWd0NVZNLWtWa3FkeVU4bjFpc3ExMjlrLndvZmYyKSBmb3JtYXQoJ3dvZmYyJyk7CiAgdW5pY29kZS1yYW5nZTogVSswMzAxLCBVKzA0MDAtMDQ1RiwgVSswNDkwLTA0OTEsIFUrMDRCMC0wNEIxLCBVKzIxMTY7Cn0KLyogdmlldG5hbWVzZSAqLwpAZm9udC1mYWNlIHsKICBmb250LWZhbWlseTogJ0lCTSBQbGV4IE1vbm8nOwogIGZvbnQtc3R5bGU6IG5vcm1hbDsKICBmb250LXdlaWdodDogNDAwOwogIGZvbnQtZGlzcGxheTogc3dhcDsKICBzcmM6IHVybChodHRwczovL2ZvbnRzLmdzdGF0aWMuY29tL3MvaWJtcGxleG1vbm8vdjEyLy1GNjNmanB0QWd0NVZNLWtWa3FkeVU4bjFpQXExMjlrLndvZmYyKSBmb3JtYXQoJ3dvZmYyJyk7CiAgdW5pY29kZS1yYW5nZTogVSswMTAyLTAxMDMsIFUrMDExMC0wMTExLCBVKzAxMjgtMDEyOSwgVSswMTY4LTAxNjksIFUrMDFBMC0wMUExLCBVKzAxQUYtMDFCMCwgVSsxRUEwLTFFRjksIFUrMjBBQjsKfQovKiBsYXRpbi1leHQgKi8KQGZvbnQtZmFjZSB7CiAgZm9udC1mYW1pbHk6ICdJQk0gUGxleCBNb25vJzsKICBmb250LXN0eWxlOiBub3JtYWw7CiAgZm9udC13ZWlnaHQ6IDQwMDsKICBmb250LWRpc3BsYXk6IHN3YXA7CiAgc3JjOiB1cmwoaHR0cHM6Ly9mb250cy5nc3RhdGljLmNvbS9zL2libXBsZXhtb25vL3YxMi8tRjYzZmpwdEFndDVWTS1rVmtxZHlVOG4xaUVxMTI5ay53b2ZmMikgZm9ybWF0KCd3b2ZmMicpOwogIHVuaWNvZGUtcmFuZ2U6IFUrMDEwMC0wMjRGLCBVKzAyNTksIFUrMUUwMC0xRUZGLCBVKzIwMjAsIFUrMjBBMC0yMEFCLCBVKzIwQUQtMjBDRiwgVSsyMTEzLCBVKzJDNjAtMkM3RiwgVStBNzIwLUE3RkY7Cn0KLyogbGF0aW4gKi8KQGZvbnQtZmFjZSB7CiAgZm9udC1mYW1pbHk6ICdJQk0gUGxleCBNb25vJzsKICBmb250LXN0eWxlOiBub3JtYWw7CiAgZm9udC13ZWlnaHQ6IDQwMDsKICBmb250LWRpc3BsYXk6IHN3YXA7CiAgc3JjOiB1cmwoaHR0cHM6Ly9mb250cy5nc3RhdGljLmNvbS9zL2libXBsZXhtb25vL3YxMi8tRjYzZmpwdEFndDVWTS1rVmtxZHlVOG4xaThxMXcud29mZjIpIGZvcm1hdCgnd29mZjInKTsKICB1bmljb2RlLXJhbmdlOiBVKzAwMDAtMDBGRiwgVSswMTMxLCBVKzAxNTItMDE1MywgVSswMkJCLTAyQkMsIFUrMDJDNiwgVSswMkRBLCBVKzAyREMsIFUrMjAwMC0yMDZGLCBVKzIwNzQsIFUrMjBBQywgVSsyMTIyLCBVKzIxOTEsIFUrMjE5MywgVSsyMjEyLCBVKzIyMTUsIFUrRkVGRiwgVStGRkZEOwp9CmJvZHkgI2NpbmVtYV9kc19tYWluX3dpbmRvdwp7CglkaXNwbGF5OiBub25lOwp9CgoKYm9keVtjbmRzX3Nob3duPSd5ZXMnXSAuY2hhdC0yWmZqb0kgLmNvbnRlbnQtMWpReTJsCnsKCXBvc2l0aW9uOiByZWxhdGl2ZTsKfQoKCmJvZHlbY25kc19zaG93bj0neWVzJ10gI2NpbmVtYV9kc19tYWluX3dpbmRvdwp7Cglwb3NpdGlvbjogYWJzb2x1dGU7CglkaXNwbGF5OiBmbGV4OwoJd2lkdGg6IDEwMCU7CgloZWlnaHQ6IDEwMCU7CgliYWNrZ3JvdW5kOiAjMzYzOTNmOwoJei1pbmRleDogNjU1MzU7Cn0KCmJvZHlbY25kc19zaG93bj0neWVzJ10gI2NpbmVtYV9kc19tYWluX3dpbmRvdzo6YmVmb3JlCnsKCWNvbnRlbnQ6ICcnOwoJcG9zaXRpb246IGFic29sdXRlOwoJd2lkdGg6IDEwMCU7CgloZWlnaHQ6IDJweDsKCXRvcDogMHB4OwoJYmFja2dyb3VuZDogLW1vei1saW5lYXItZ3JhZGllbnQoMGRlZywgcmdiYSgwLDAsMCwwKSAwJSwgcmdiYSgzNCwzNCwzNCwxKSAxMDAlKTsKCWJhY2tncm91bmQ6IC13ZWJraXQtbGluZWFyLWdyYWRpZW50KDBkZWcsIHJnYmEoMCwwLDAsMCkgMCUsIHJnYmEoMzQsMzQsMzQsMSkgMTAwJSk7CgliYWNrZ3JvdW5kOiBsaW5lYXItZ3JhZGllbnQoMGRlZywgcmdiYSgwLDAsMCwwKSAwJSwgcmdiYSgzNCwzNCwzNCwxKSAxMDAlKTsKfQoKCiNjaW5lbWFfZHNfbWFpbl93aW5kb3cgI2NpbmVtYWRzX3N0YXRzCnsKCWNvbG9yOiByZ2JhKDI1NSwgMjU1LCAyNTUsIDAuNSk7Cglwb3NpdGlvbjogYWJzb2x1dGU7Cgl3aWR0aDogMTAwJTsKCWhlaWdodDogMjBweDsKCWZvbnQtZmFtaWx5OiAnSUJNIFBsZXggTW9ubycsIG1vbm9zcGFjZTsKICAgIC8qIGFsaWduLXNlbGY6IGZsZXgtZW5kOyAqLwogICAgZGlzcGxheTogZmxleDsKICAgIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7CiAgICAvKiB0ZXh0LWFsaWduOiBlbmQ7ICovCiAgICAvKiBwYWRkaW5nLWxlZnQ6IDMzNnB4OyAqLwogICAgLyogbWFyZ2luLXJpZ2h0OiAyMHB4OyAqLwogICAgd2lkdGg6IDk1JTsKfQoKCiNjaW5lbWFfZHNfbWFpbl93aW5kb3cgI2NpbmVtYWRzX21lZGlhX3Bvb2wKewoJZGlzcGxheTogZmxleDsKCWZsZXgtZGlyZWN0aW9uOiBjb2x1bW47CglmbGV4LWdyb3c6IDE7CglvdmVyZmxvdy15OiBzY3JvbGw7Cn0KCiNjaW5lbWFkc19tZWRpYV9wb29sIC5jaW5lbWFfZHNfdmlkZW9fZW50cnksICNjaW5lbWFkc19tZWRpYV9wb29sIC5jaW5lbWFfZHNfaW1nX2VudHJ5CnsKCXBvc2l0aW9uOiByZWxhdGl2ZTsKCW9iamVjdC1maXQ6IGNvbnRhaW47CgloZWlnaHQ6IDYwJTsKCXdpZHRoOiBmaXQtY29udGVudDsKCW1heC13aWR0aDogODAlOwoJbWFyZ2luOiAyMHB4Owp9CgoKCgoKCgo=`;
+	var cssb64 = `LyogY3lyaWxsaWMtZXh0ICovCkBmb250LWZhY2UgewogIGZvbnQtZmFtaWx5OiAnSUJNIFBsZXggTW9ubyc7CiAgZm9udC1zdHlsZTogbm9ybWFsOwogIGZvbnQtd2VpZ2h0OiA0MDA7CiAgZm9udC1kaXNwbGF5OiBzd2FwOwogIHNyYzogdXJsKGh0dHBzOi8vZm9udHMuZ3N0YXRpYy5jb20vcy9pYm1wbGV4bW9uby92MTIvLUY2M2ZqcHRBZ3Q1Vk0ta1ZrcWR5VThuMWlJcTEyOWsud29mZjIpIGZvcm1hdCgnd29mZjInKTsKICB1bmljb2RlLXJhbmdlOiBVKzA0NjAtMDUyRiwgVSsxQzgwLTFDODgsIFUrMjBCNCwgVSsyREUwLTJERkYsIFUrQTY0MC1BNjlGLCBVK0ZFMkUtRkUyRjsKfQovKiBjeXJpbGxpYyAqLwpAZm9udC1mYWNlIHsKICBmb250LWZhbWlseTogJ0lCTSBQbGV4IE1vbm8nOwogIGZvbnQtc3R5bGU6IG5vcm1hbDsKICBmb250LXdlaWdodDogNDAwOwogIGZvbnQtZGlzcGxheTogc3dhcDsKICBzcmM6IHVybChodHRwczovL2ZvbnRzLmdzdGF0aWMuY29tL3MvaWJtcGxleG1vbm8vdjEyLy1GNjNmanB0QWd0NVZNLWtWa3FkeVU4bjFpc3ExMjlrLndvZmYyKSBmb3JtYXQoJ3dvZmYyJyk7CiAgdW5pY29kZS1yYW5nZTogVSswMzAxLCBVKzA0MDAtMDQ1RiwgVSswNDkwLTA0OTEsIFUrMDRCMC0wNEIxLCBVKzIxMTY7Cn0KLyogdmlldG5hbWVzZSAqLwpAZm9udC1mYWNlIHsKICBmb250LWZhbWlseTogJ0lCTSBQbGV4IE1vbm8nOwogIGZvbnQtc3R5bGU6IG5vcm1hbDsKICBmb250LXdlaWdodDogNDAwOwogIGZvbnQtZGlzcGxheTogc3dhcDsKICBzcmM6IHVybChodHRwczovL2ZvbnRzLmdzdGF0aWMuY29tL3MvaWJtcGxleG1vbm8vdjEyLy1GNjNmanB0QWd0NVZNLWtWa3FkeVU4bjFpQXExMjlrLndvZmYyKSBmb3JtYXQoJ3dvZmYyJyk7CiAgdW5pY29kZS1yYW5nZTogVSswMTAyLTAxMDMsIFUrMDExMC0wMTExLCBVKzAxMjgtMDEyOSwgVSswMTY4LTAxNjksIFUrMDFBMC0wMUExLCBVKzAxQUYtMDFCMCwgVSsxRUEwLTFFRjksIFUrMjBBQjsKfQovKiBsYXRpbi1leHQgKi8KQGZvbnQtZmFjZSB7CiAgZm9udC1mYW1pbHk6ICdJQk0gUGxleCBNb25vJzsKICBmb250LXN0eWxlOiBub3JtYWw7CiAgZm9udC13ZWlnaHQ6IDQwMDsKICBmb250LWRpc3BsYXk6IHN3YXA7CiAgc3JjOiB1cmwoaHR0cHM6Ly9mb250cy5nc3RhdGljLmNvbS9zL2libXBsZXhtb25vL3YxMi8tRjYzZmpwdEFndDVWTS1rVmtxZHlVOG4xaUVxMTI5ay53b2ZmMikgZm9ybWF0KCd3b2ZmMicpOwogIHVuaWNvZGUtcmFuZ2U6IFUrMDEwMC0wMjRGLCBVKzAyNTksIFUrMUUwMC0xRUZGLCBVKzIwMjAsIFUrMjBBMC0yMEFCLCBVKzIwQUQtMjBDRiwgVSsyMTEzLCBVKzJDNjAtMkM3RiwgVStBNzIwLUE3RkY7Cn0KLyogbGF0aW4gKi8KQGZvbnQtZmFjZSB7CiAgZm9udC1mYW1pbHk6ICdJQk0gUGxleCBNb25vJzsKICBmb250LXN0eWxlOiBub3JtYWw7CiAgZm9udC13ZWlnaHQ6IDQwMDsKICBmb250LWRpc3BsYXk6IHN3YXA7CiAgc3JjOiB1cmwoaHR0cHM6Ly9mb250cy5nc3RhdGljLmNvbS9zL2libXBsZXhtb25vL3YxMi8tRjYzZmpwdEFndDVWTS1rVmtxZHlVOG4xaThxMXcud29mZjIpIGZvcm1hdCgnd29mZjInKTsKICB1bmljb2RlLXJhbmdlOiBVKzAwMDAtMDBGRiwgVSswMTMxLCBVKzAxNTItMDE1MywgVSswMkJCLTAyQkMsIFUrMDJDNiwgVSswMkRBLCBVKzAyREMsIFUrMjAwMC0yMDZGLCBVKzIwNzQsIFUrMjBBQywgVSsyMTIyLCBVKzIxOTEsIFUrMjE5MywgVSsyMjEyLCBVKzIyMTUsIFUrRkVGRiwgVStGRkZEOwp9CmJvZHkgI2NpbmVtYV9kc19tYWluX3dpbmRvdwp7CglkaXNwbGF5OiBub25lOwp9CgoKYm9keVtjbmRzX3Nob3duPSd5ZXMnXSAuY2hhdC0yWmZqb0kgLmNvbnRlbnQtMWpReTJsCnsKCXBvc2l0aW9uOiByZWxhdGl2ZTsKfQoKCmJvZHlbY25kc19zaG93bj0neWVzJ10gI2NpbmVtYV9kc19tYWluX3dpbmRvdwp7Cglwb3NpdGlvbjogYWJzb2x1dGU7CglkaXNwbGF5OiBmbGV4OwoJZmxleC1kaXJlY3Rpb246IGNvbHVtbjsKCXdpZHRoOiAxMDAlOwoJaGVpZ2h0OiAxMDAlOwoJYmFja2dyb3VuZDogIzM2MzkzZjsKCXotaW5kZXg6IDY1NTM1Owp9Cgpib2R5W2NuZHNfc2hvd249J3llcyddICNjaW5lbWFfZHNfbWFpbl93aW5kb3c6OmJlZm9yZQp7Cgljb250ZW50OiAnJzsKCXBvc2l0aW9uOiBhYnNvbHV0ZTsKCXdpZHRoOiAxMDAlOwoJaGVpZ2h0OiAycHg7Cgl0b3A6IDBweDsKCWJhY2tncm91bmQ6IC1tb3otbGluZWFyLWdyYWRpZW50KDBkZWcsIHJnYmEoMCwwLDAsMCkgMCUsIHJnYmEoMzQsMzQsMzQsMSkgMTAwJSk7CgliYWNrZ3JvdW5kOiAtd2Via2l0LWxpbmVhci1ncmFkaWVudCgwZGVnLCByZ2JhKDAsMCwwLDApIDAlLCByZ2JhKDM0LDM0LDM0LDEpIDEwMCUpOwoJYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDBkZWcsIHJnYmEoMCwwLDAsMCkgMCUsIHJnYmEoMzQsMzQsMzQsMSkgMTAwJSk7Cn0KCgojY2luZW1hX2RzX21haW5fd2luZG93ICNjaW5lbWFkc19zdGF0cwp7Cgljb2xvcjogcmdiYSgyNTUsIDI1NSwgMjU1LCAwLjUpOwoJcG9zaXRpb246IGFic29sdXRlOwoJd2lkdGg6IDEwMCU7CgloZWlnaHQ6IDIwcHg7Cglmb250LWZhbWlseTogJ0lCTSBQbGV4IE1vbm8nLCBtb25vc3BhY2U7CiAgICAvKiBhbGlnbi1zZWxmOiBmbGV4LWVuZDsgKi8KICAgIGRpc3BsYXk6IGZsZXg7CiAgICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtZW5kOwogICAgLyogdGV4dC1hbGlnbjogZW5kOyAqLwogICAgLyogcGFkZGluZy1sZWZ0OiAzMzZweDsgKi8KICAgIC8qIG1hcmdpbi1yaWdodDogMjBweDsgKi8KICAgIHdpZHRoOiA5NSU7Cn0KCgojY2luZW1hX2RzX21haW5fd2luZG93ICNjaW5lbWFkc19tZWRpYV9wb29sCnsKCWRpc3BsYXk6IGJsb2NrOwoJLypmbGV4LWRpcmVjdGlvbjogY29sdW1uOyovCgkvKmZsZXgtZ3JvdzogMTsqLwoJb3ZlcmZsb3cteTogc2Nyb2xsOwoJaGVpZ2h0OiBpbmhlcml0OwoKCn0KCiNjaW5lbWFfZHNfbWFpbl93aW5kb3cgI2NpbmVtYWRzX3BhZ2VzCnsKCXVzZXItc2VsZWN0OiBub25lOwoJZGlzcGxheTogZmxleDsKCWZsZXgtZGlyZWN0aW9uOiByb3c7CglhbGlnbi1pdGVtczogY2VudGVyOwoJanVzdGlmeS1jb250ZW50OiBjZW50ZXI7CglwYWRkaW5nOiAxMHB4OwoJY29sb3I6IHdoaXRlOwp9CgojY2luZW1hX2RzX21haW5fd2luZG93ICNjaW5lbWFkc19wYWdlcyAuY2luZW1hZHNfcGFnZSwKI2NpbmVtYV9kc19tYWluX3dpbmRvdyAjY2luZW1hZHNfcGFnZXMgI2NpbmVtYWRzX3BhZ2VfcHJldiwKI2NpbmVtYV9kc19tYWluX3dpbmRvdyAjY2luZW1hZHNfcGFnZXMgI2NpbmVtYWRzX3BhZ2VfbmV4dAp7CglwYWRkaW5nOiA1cHg7Cn0KCiNjaW5lbWFfZHNfbWFpbl93aW5kb3cgI2NpbmVtYWRzX3BhZ2VzIC5jaW5lbWFkc19wYWdlOmhvdmVyLAojY2luZW1hX2RzX21haW5fd2luZG93ICNjaW5lbWFkc19wYWdlcyAjY2luZW1hZHNfcGFnZV9wcmV2OmhvdmVyLAojY2luZW1hX2RzX21haW5fd2luZG93ICNjaW5lbWFkc19wYWdlcyAjY2luZW1hZHNfcGFnZV9uZXh0OmhvdmVyCnsKCWJhY2tncm91bmQ6IHJnYmEoMCwgMCwgMCwgMC4yKTsKfQoKCiNjaW5lbWFkc19tZWRpYV9wb29sIC5jaW5lbWFfZHNfdmlkZW9fZW50cnksICNjaW5lbWFkc19tZWRpYV9wb29sIC5jaW5lbWFfZHNfaW1nX2VudHJ5CnsKCXBvc2l0aW9uOiByZWxhdGl2ZTsKCW9iamVjdC1maXQ6IGNvbnRhaW47CgkvKmhlaWdodDogNjAlOyovCgkvKndpZHRoOiBmaXQtY29udGVudDsqLwoJLyptYXgtd2lkdGg6IDgwJTsqLwoJd2lkdGg6IDE1NHB4OwoJbWF4LWhlaWdodDogMTByZW07CgltYXJnaW46IDIwcHg7Cgl2ZXJ0aWNhbC1hbGlnbjogdGV4dC10b3A7Cn0KCiNjaW5lbWFfZHNfZnVsbHNjcmVlbgp7Cglwb3NpdGlvbjogZml4ZWQ7Cgl3aWR0aDogMTAwJTsKCWhlaWdodDogMTAwJTsKCXotaW5kZXg6IDIxNDc0ODM2NDsKCW9iamVjdC1maXQ6IGNvbnRhaW47CglvYmplY3QtcG9zaXRpb246IGNlbnRlcjsKCWJhY2tncm91bmQ6IHJnYmEoMCwgMCwgMCwgMC45KTsKCWJhY2tkcm9wLWZpbHRlcjogYmx1cig5cHgpOwp9CgoKCgoK`;
 	var pepcss = document.createElement('style');
 	pepcss.id = 'bootlegger_css';
 	pepcss.textContent = window.bootlegger_sys_funcs.UTF8ArrToStr(
@@ -506,7 +677,7 @@ window.bootlegger = {};
 
 
 
-btg.main_window = window.bootlegger_sys_funcs.UTF8ArrToStr(window.bootlegger_sys_funcs.base64DecToArr('PGRpdiBpZD0iY2luZW1hX2RzX21haW5fd2luZG93Ij4NCgk8ZGl2IGlkPSJjaW5lbWFkc19zdGF0cyI+U3RhdHM8L2Rpdj4NCgk8ZGl2IGlkPSJjaW5lbWFkc19tZWRpYV9wb29sIj48L2Rpdj4NCjwvZGl2Pg=='));
+btg.main_window = window.bootlegger_sys_funcs.UTF8ArrToStr(window.bootlegger_sys_funcs.base64DecToArr('PGRpdiBpZD0iY2luZW1hX2RzX21haW5fd2luZG93Ij4NCgk8ZGl2IGlkPSJjaW5lbWFkc19zdGF0cyI+U3RhdHM8L2Rpdj4NCgk8ZGl2IGlkPSJjaW5lbWFkc19tZWRpYV9wb29sIj48L2Rpdj4NCgk8ZGl2IGlkPSJjaW5lbWFkc19wYWdlcyI+PC9kaXY+DQo8L2Rpdj4='));
 
 
 
@@ -545,6 +716,21 @@ btg.main_window = window.bootlegger_sys_funcs.UTF8ArrToStr(window.bootlegger_sys
 
 
 
+
+
+document.addEventListener('click', tr_event => {
+
+
+	// ==========================================
+	// 	grid grid
+	// ==========================================
+
+	if (event.target.closest('#cinema_ds_main_window #cinemads_pages #cinemads_page_next')){window.bootlegger.grid.load_next_page()}
+	if (event.target.closest('#cinema_ds_main_window .cinema_ds_img_entry')){window.bootlegger.grid.maximize_image(event.target.closest('#cinema_ds_main_window .cinema_ds_img_entry'))}
+	if (event.target.closest('#cinema_ds_fullscreen')){$('body #cinema_ds_fullscreen').remove()}
+
+
+});
 
 
 document.addEventListener('keydown', tr_event => {
@@ -754,7 +940,170 @@ localStorage.getItem = function(item)
 }
 
 
-window.addEventListener('urlchange', (info) => window.bootlegger.main.url_switch());
+
+if (!window.bootlegger.grid){window.bootlegger.grid={}};
+
+if (!window.bootlegger){window.bootlegger = {}};
+
+if (!window.bootlegger){window.bootlegger = {}};
+
+if (!window.bootlegger.grid){window.bootlegger.grid={}};
+
+window.bootlegger.grid.current_page_index = 0
+
+class gridmaker
+{
+	constructor(){
+		window.bootlegger.main.ensure_container_exists(true)
+		this.alive = true;
+		this.worker_alive = {alive: true};
+		this.traversing = false;
+		this.working = false;
+		this.msg_offset = null;
+		this.chan_id = (new URL(window.location.href)).target.name
+		this.qitems = []
+
+		this.pages = []
+
+		print('initialized gridder')
+
+	}
+
+	async load_page(msg_offs=null){
+		if (this.alive != true || this.working == true){print('Page loader cant do shit:', 'class alive:', this.alive, 'working:', this.working);return}
+
+		$('#cinema_ds_main_window #cinemads_pages').html(this.eval_pages(window.bootlegger.grid.current_page_index).join('\n'))
+		$('#cinema_ds_main_window #cinemads_media_pool').empty()
+		this.traversing = true;
+		const msgs = await window.bootlegger.main.msg_traverser(this.chan_id, this.worker_alive, msg_offs, 56)
+		this.qitems = msgs.media_units;
+		this.traversing = false;
+
+
+		this.pages.push({
+			'offs': msgs.last_id,
+			'media': msgs.media_units
+		})
+
+		this.working = true;
+		await window.bootlegger.main.media_queue_processor(this, this.worker_alive)
+		this.working = false;
+
+		return true
+	}
+
+	eval_pages(active_page_index=null){
+
+		const amt = 9
+		const list = (amt % 2) ? (amt + 1) : amt
+
+		const sides = Math.floor(list / 2)
+
+		var result = []
+
+		const pg_len = this.pages.length
+
+		result.push(`
+			<div id="cinemads_page_prev">Prev</div>
+		`)
+
+		if (active_page_index >= sides){
+			result.push(`
+				<div page_index="0" class="cinemads_page">1</div>
+				<div class="cinemads_page_between">...</div>
+			`)
+		}
+		print('Left side:', (active_page_index - sides).clamp(0, 65535), active_page_index)
+		for (var pgl of range((active_page_index - sides).clamp(0, 65535), active_page_index)){
+			if (!this.pages[pgl]){break}
+			result.push(`
+				<div page_index="${pgl}" class="cinemads_page">${pgl}</div>
+			`)
+		}
+		result.push(`
+			<div class="cinemads_page pg_active">${active_page_index}</div>
+		`)
+		print('Right side:', active_page_index, active_page_index + sides)
+		for (var pgr of range(active_page_index, active_page_index + sides)){
+			if (!this.pages[pgr]){break}
+			result.push(`
+				<div page_index="${pgr}" class="cinemads_page">${pgr}</div>
+			`)
+		}
+		if ((pg_len - active_page_index) > sides){
+			result.push(`
+				<div class="cinemads_page_between">...</div>
+				<div page_index="0" class="cinemads_page">${pg_len}</div>
+			`)
+		}
+		result.push(`
+			<div id="cinemads_page_next">Next</div>
+		`)
+		return result
+	}
+
+	page_switch(pg_index=0){
+		if (!this.pages[pg_index]){return}
+
+		this.abort()
+
+		this.load_page(this.pages[pg_index].offs)
+	}
+
+	next_page(initial=0){
+		this.abort()
+
+		window.bootlegger.grid.current_page_index += 1
+		print('New page index:', window.bootlegger.grid.current_page_index, 'pages:', this.pages, 'WHAT??', window.bootlegger.grid.current_page_index - 1)
+		this.load_page(this.pages[window.bootlegger.grid.current_page_index - 1].offs)
+	}
+
+	kill(){
+		this.alive = false;
+		this.worker_alive.alive = false;
+
+		this.traversing = true;
+		this.working = true;
+
+	}
+
+	abort(){
+		this.worker_alive.alive = false;
+		this.worker_alive = {alive: true};
+		this.working = false;
+	}
+}
+
+window.bootlegger.grid.grid = null
+
+window.bootlegger.grid.init = function(){
+	if (!window.bootlegger.grid.grid){
+		window.bootlegger.grid.grid = new gridmaker()
+		print('created new grid')
+		window.bootlegger.grid.grid.load_page(0)
+	}
+}
+
+window.bootlegger.grid.reset = function(){
+	window.bootlegger.grid.grid.kill()
+	window.bootlegger.grid.current_page_index = 0
+	window.bootlegger.grid.grid = new gridmaker()
+}
+
+
+window.bootlegger.grid.load_next_page = function(){
+	window.bootlegger.grid.grid.next_page()
+}
+
+window.bootlegger.grid.maximize_image = function(tgt){
+	$('body #cinema_ds_fullscreen').remove()
+	$('body').append(`<img id="cinema_ds_fullscreen" src="${tgt.src}">`)
+}
+
+
+
+
+
 
 if (!window.bootlegger.main){window.bootlegger.main={}};
 
@@ -784,10 +1133,9 @@ window.bootlegger.main.open_pool_via_keybind = function(evt)
 {
 	if (evt.altKey && evt.keyCode == 65){
 		print('Opening Pool via keybind...')
-		const cotainer_exists = window.bootlegger.main.ensure_container_exists(true)
+		const cotainer_exists = window.bootlegger.main.ensure_container_exists()
 		print('Ensuring that container exists:', cotainer_exists)
-		window.bootlegger.main.toggle_main_window_vis('toggle')
-		!cotainer_exists ? window.bootlegger.main.traverse_more_messages() : null
+		window.bootlegger.grid.init()
 	}
 }
 
@@ -810,20 +1158,7 @@ window.bootlegger.main.ensure_container_exists = function(silent=false)
 	return true
 }
 
-
 window.bootlegger.main.media_processor = {}
-
-window.bootlegger.main.media_queue = {}
-
-
-window.bootlegger.main.media_queue.items = [];
-window.bootlegger.main.media_queue_active = false;
-window.bootlegger.main.message_offset = 0;
-window.bootlegger.main.last_msg_id = null;
-window.bootlegger.main.total_channel_msgs = 0;
-window.bootlegger.main.total_found_msgs = 0;
-
-
 
 window.bootlegger.main.media_processor.video = async function(msg, as_embed=false, looped_mute=false)
 {
@@ -876,100 +1211,6 @@ window.bootlegger.main.media_processor.image = async function(msg, as_url=false)
 
 
 
-
-
-
-
-window.bootlegger.main.media_queue.processor = async function(worker)
-{
-	print('Launched a processor, worker:', worker)
-	window.bootlegger.main.media_queue_active = true;
-
-	while (worker.alive){
-		var current_msg = window.bootlegger.main.media_queue.items[0];
-		print('Processing a message...', current_msg);
-		if (!current_msg){break}
-
-		var as_emb = current_msg.lizard_type == 'embed'
-		var media_type_key = as_emb ? 'type' : 'content_type'
-
-		print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
-
-
-		if (media_types.image.includes(current_msg[media_type_key])){
-			var elem = await window.bootlegger.main.media_processor.image(current_msg)
-		}
-		if (media_types.video.includes(current_msg[media_type_key])){
-			var elem = await window.bootlegger.main.media_processor.video(current_msg, as_emb, current_msg[media_type_key] == 'gifv')
-		}
-		if (current_msg[media_type_key] == 'article' && current_msg.thumbnail){
-			print('found article:', current_msg)
-			var elem = await window.bootlegger.main.media_processor.image(current_msg.thumbnail.url, true)
-		}
-
-
-
-		if (worker.alive != true){break}
-
-		if (elem){
-			$('#cinema_ds_main_window #cinemads_media_pool').prepend(elem)
-		}
-
-		window.bootlegger.main.media_queue.items.shift()
-		window.bootlegger.main.dump_stats()
-		print('Current queue length', window.bootlegger.main.media_queue.items.length)
-	}
-
-	print('Done iterating over the queue', 'worker status:', worker.alive, 'queue', window.bootlegger.main.media_queue.items);
-
-	window.bootlegger.main.media_queue_active = false;
-
-	worker.alive = false;
-}
-
-
-
-window.bootlegger.main.media_queue.ctrl_src = function()
-{
-	return {
-		start: function(){
-			if (this.alive){
-				print('Tried to launch an already running worker')
-				return
-			}
-			print('Launched media queue worker')
-
-			this.alive = true
-			window.bootlegger.main.media_queue.processor(this)
-		},
-		kill: function(){
-			print('Killing a wroker...', 'current state:', this.alive)
-			this.alive = false
-		}
-	}
-}
-
-window.bootlegger.main.media_queue.ctrl = window.bootlegger.main.media_queue.ctrl_src()
-
-window.bootlegger.main.media_queue.flush = function()
-{
-	print('Flushing Media Queue...')
-	window.bootlegger.main.media_queue.ctrl.kill()
-	window.bootlegger.main.media_queue_active = false;
-	window.bootlegger.main.media_queue.items = [];
-	window.bootlegger.main.media_queue.ctrl = window.bootlegger.main.media_queue.ctrl_src()
-}
-
-window.bootlegger.main.media_queue.ensure = function()
-{
-	print('Ensuring that the queue is running, if possible')
-	window.bootlegger.main.media_queue.ctrl.start()
-}
-
-
-
-
-
 window.bootlegger.main.get_messages = async function(chan_id, before=null)
 {
 	return new Promise(function(resolve, reject){
@@ -999,71 +1240,10 @@ window.bootlegger.main.get_messages = async function(chan_id, before=null)
 }
 
 
-
-
-
-window.bootlegger.main.dump_stats = function()
-{
-	document.querySelector('#cinema_ds_main_window #cinemads_stats')
-	.innerText = `Total: ${str(window.bootlegger.main.total_channel_msgs).padStart(5, '0')}, Queued: ${window.bootlegger.main.media_queue.items.length}`;
-}
-
-window.bootlegger.main.traverse_lock = false
-
-window.bootlegger.main.traverse_more_messages = async function()
-{
-	print('Traversing messages...')
-	if (window.bootlegger.main.traverse_lock != false){print('Traversing is locked...');return}
-	window.bootlegger.main.traverse_lock = true;
-	const current_loc = window.location.pathname.strip('/').split('/')
-	const current_chan_id = current_loc.at(-1)
-	var found_msgs = 0
-
-	print('Traversing info:', current_chan_id)
-
-	while (true){
-		if (found_msgs >= 50){break}
-		print('Getting 100 messages...')
-		var messages = await window.bootlegger.main.get_messages(current_chan_id, window.bootlegger.main.last_msg_id)
-		if (messages.length <= 0){break}
-		print('Got 100<= messages...', messages)
-		window.bootlegger.main.last_msg_id = messages.at(-1).id
-		for (var msg of messages){
-			window.bootlegger.main.total_channel_msgs += 1
-			if (msg.attachments.length <= 0 && msg.embeds.length <= 0){continue}
-			found_msgs += 1
-			window.bootlegger.main.total_found_msgs += 1;
-
-			msg.attachments = msg.attachments.map(function sex(m){
-				m.lizard_type = 'attachment'
-				return m
-			})
-			msg.embeds = msg.embeds.map(function sex(m){
-				m.lizard_type = 'embed'
-				return m
-			})
-
-			for (var embed of msg.attachments.concat(msg.embeds)){
-				window.bootlegger.main.media_queue.items.push(embed)
-				print('found embed', embed)
-			}
-
-			window.bootlegger.main.dump_stats()
-		}
-	}
-
-	window.bootlegger.main.traverse_lock = false;
-
-	window.bootlegger.main.media_queue.ensure()
-}
-
-
 window.bootlegger.main.scroll_watcher = function(mpool)
 {
 	if (mpool.scrollTop == 0 && window.bootlegger.main.media_queue_active != true){
-		window.bootlegger.main.media_queue.ensure()
 		print('Reached the top of the media pool, loading more messages')
-		window.bootlegger.main.traverse_more_messages()
 	}
 }
 
@@ -1082,8 +1262,88 @@ window.bootlegger.main.url_switch = function()
 }
 
 
+window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signal={}, msg_offs=null, limit=50)
+{
+	print('Traversing messages for', chain_id)
+	if (break_signal.alive != true){print('traverser is dead from the start');return []}
+	const current_chan_id = chain_id
+	var total_msgs_scanned = 0
+
+	var found_msgs = []
+
+	var last_msg_id = msg_offs;
+
+	print('Traversing info:', current_chan_id)
+
+	while (break_signal.alive && found_msgs.length <= limit){
+		print('Getting 100 messages...')
+		var messages = await window.bootlegger.main.get_messages(current_chan_id, last_msg_id)
+		if (messages.length <= 0){break}
+		print('Got 100<= messages...', messages)
+		var last_msg_id = messages.at(-1).id
+		for (var msg of messages){
+			total_msgs_scanned += 1
+			if (msg.attachments.length <= 0 && msg.embeds.length <= 0){continue}
+
+			msg.attachments = msg.attachments.map(function sex(m){
+				m.lizard_type = 'attachment'
+				return m
+			})
+			msg.embeds = msg.embeds.map(function sex(m){
+				m.lizard_type = 'embed'
+				return m
+			})
+
+			for (var embed of msg.attachments.concat(msg.embeds)){
+				found_msgs.push(embed)
+				print('found embed', embed)
+			}
+		}
+	}
+
+	return {'media_units': found_msgs, 'last_id': last_msg_id}
+}
 
 
+window.bootlegger.main.media_queue_processor = async function(media_queue, break_signal)
+{
+	print('Processing media queue', media_queue.qitems)
+	if (break_signal.alive != true){return false}
+
+	while (break_signal.alive){
+		var current_msg = media_queue.qitems[0];
+		print('Processing a message...', current_msg);
+		if (!current_msg){break}
+
+		var as_emb = current_msg.lizard_type == 'embed'
+		var media_type_key = as_emb ? 'type' : 'content_type'
+
+		print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
 
 
+		if (media_types.image.includes(current_msg[media_type_key])){
+			var elem = await window.bootlegger.main.media_processor.image(current_msg)
+		}
+		if (media_types.video.includes(current_msg[media_type_key])){
+			var elem = await window.bootlegger.main.media_processor.video(current_msg, as_emb, current_msg[media_type_key] == 'gifv')
+		}
+		if (current_msg[media_type_key] == 'article' && current_msg.thumbnail){
+			print('found article:', current_msg)
+			var elem = await window.bootlegger.main.media_processor.image(current_msg.thumbnail.url, true)
+		}
 
+
+		if (break_signal.alive != true){break}
+
+		if (elem){
+			$('#cinema_ds_main_window #cinemads_media_pool').prepend(elem)
+		}
+
+		media_queue.qitems.shift()
+		print('Current queue length', media_queue.qitems.length)
+	}
+
+	print('Done iterating over the media queue');
+
+	return true
+}
