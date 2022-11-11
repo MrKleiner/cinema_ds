@@ -55,9 +55,15 @@ $this.fetch = function(params)
 	// Construct request URL
 	// URL params
 	const mk_url_params = new URLSearchParams(func_prms.url_params);
+	// wipe any parameters from the input url, if any custom parameters were defined
+	const rq_url_clear = new obj_url(func_prms.url).no_search
 	// Collapse into final
 	// nothing is added if the url params dict is empty
-	const request_url = func_prms.url + ((func_prms.url_params != {}) ? `?${mk_url_params.toString()}` : '')
+	// todo: is it really neccessary to spam brackets like that ?
+	const request_url = 
+		rq_url_clear ? (func_prms.url_params != {}) : func_prms.url
+		+ 
+		((func_prms.url_params != {}) ? `?${mk_url_params.toString()}` : '')
 
 	// headers
 	const default_headers = {
@@ -192,7 +198,9 @@ $this.fetch = function(params)
 
 // Grant all domains permission
 // by fetching a random URL which would prompt stuff to user
-$this.fetch('https://discord.com')
+$this.fetch({
+	'url':'https://discord.com'
+})
 
 // custom local storage binds
 const localStorage = {}
@@ -208,4 +216,4 @@ localStorage.getItem = function(item)
 
 
 // when url changes - flush stuff and load new
-// window.addEventListener('urlchange', (info) => $all.main.url_switch());
+window.addEventListener('urlchange', (info) => $all.main.url_switch_protocol());

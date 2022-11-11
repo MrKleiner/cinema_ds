@@ -78,7 +78,15 @@ body[cnds_shown='yes'] #cinema_ds_main_window::before
 #cinema_ds_main_window #cinemads_pages #cinemads_page_prev,
 #cinema_ds_main_window #cinemads_pages #cinemads_page_next
 {
-	padding: 5px;
+	padding: 5px 10px 5px 10px;
+	opacity: 0.5;
+}
+
+#cinemads_pages .pg_active,
+#cinema_ds_main_window #cinemads_pages #cinemads_page_prev,
+#cinema_ds_main_window #cinemads_pages #cinemads_page_next
+{
+	opacity: 1 !important;
 }
 
 #cinema_ds_main_window #cinemads_pages .cinemads_page:hover,
@@ -91,16 +99,66 @@ body[cnds_shown='yes'] #cinema_ds_main_window::before
 
 #cinemads_media_pool .cinema_ds_video_entry, #cinemads_media_pool .cinema_ds_img_entry
 {
+	display: inline-block;
 	position: relative;
-	object-fit: contain;
+	/*object-fit: contain;*/
 	/*height: 60%;*/
 	/*width: fit-content;*/
 	/*max-width: 80%;*/
 	width: 154px;
+	height: 10rem;
+	/*height: auto;*/
 	max-height: 10rem;
 	margin: 20px;
 	vertical-align: text-top;
 }
+
+#cinemads_media_pool .cinema_ds_video_entry
+{
+	display: inline-block;
+}
+
+#cinemads_media_pool .cinema_ds_img_entry img
+{
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	/*height: auto;*/
+	max-height: 10rem;
+}
+
+#cinemads_media_pool .cinema_ds_video_entry video
+{
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	max-height: 10rem;
+	object-position: center;
+}
+
+.cinema_ds_video_entry .video_icon
+{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 30px;
+	height: 30px;
+	margin: 3px;
+}
+
+.cinema_ds_video_entry .video_icon svg
+{
+	width: 100%;
+	height: 100%;
+}
+
+
+.cinema_ds_img_entry.placeholder
+{
+	height: 10rem;
+	background: rgba(0, 0, 0, 0.1);
+}
+
 
 #cinema_ds_fullscreen
 {

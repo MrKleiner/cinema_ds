@@ -8,6 +8,27 @@
 			"pass_params": ""
 		},
 		{
+			"selector": "#cinema_ds_main_window #cinemads_pages #cinemads_page_prev",
+			"function": "window.bootlegger.grid.load_prev_page",
+			"pass_event": false,
+			"pass_element": false,
+			"pass_params": ""
+		},
+		{
+			"selector": "#cinema_ds_main_window .cinema_ds_video_entry:not(.cinema_ds_video_entry[autoplay])",
+			"function": "window.bootlegger.grid.maximize_video",
+			"pass_event": false,
+			"pass_element": true,
+			"pass_params": ""
+		},
+		{
+			"selector": "#cinema_ds_main_window .cinema_ds_video_entry[autoplay]",
+			"function": "window.bootlegger.grid.maximize_video_autoplay",
+			"pass_event": false,
+			"pass_element": true,
+			"pass_params": ""
+		},
+		{
 			"selector": "#cinema_ds_main_window .cinema_ds_img_entry",
 			"function": "window.bootlegger.grid.maximize_image",
 			"pass_event": false,
@@ -15,9 +36,25 @@
 			"pass_params": ""
 		},
 		{
-			"selector": "#cinema_ds_fullscreen",
+			"selector": "#cinema_ds_fullscreen:not(.noclick)",
 			"function": "$('body #cinema_ds_fullscreen').remove",
 			"pass_event": false,
+			"pass_element": false,
+			"pass_params": ""
+		},
+		{
+			"selector": ".cinemads_page:not(.pg_active)",
+			"function": "window.bootlegger.grid.page_switch",
+			"pass_event": false,
+			"pass_element": true,
+			"pass_params": ""
+		}
+	],
+	"keydown": [
+		{
+			"selector": "body",
+			"function": "window.bootlegger.grid.close_video_fullscreen",
+			"pass_event": true,
 			"pass_element": false,
 			"pass_params": ""
 		}
