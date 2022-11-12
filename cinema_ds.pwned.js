@@ -34,7 +34,7 @@
 // ==UserScript==
 // @name         cinema_ds
 // @namespace    http://tampermonkey.net/
-// @version      0.17
+// @version      0.19
 // @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @match        https://discord.com/*
@@ -50,6 +50,7 @@
 // @grant        window.onurlchange
 // @grant        unsafeWindow
 // @run-at       document-start
+// @license 	 MIT
 // ==/UserScript==
 
 
@@ -2042,7 +2043,7 @@ window.bootlegger.core.fetch = function(params)
 }
 
 window.bootlegger.core.fetch({
-	'url':'https://discord.com'
+	'url':'https://de.wikipedia.org/wiki/Wikipedia:Hauptseite'
 })
 
 const localStorage = {}
@@ -2058,6 +2059,7 @@ localStorage.getItem = function(item)
 
 
 window.addEventListener('urlchange', (info) => window.bootlegger.main.url_switch_protocol());
+
 
 if (!window.bootlegger.grid){window.bootlegger.grid={}};
 
@@ -2099,8 +2101,11 @@ class gridmaker
 		const pulled_cache = this.pull_page_from_cache(window.bootlegger.grid.current_page_index)
 
 		this.traversing = true;
+		console.log('Lock nav')
 		const msgs = pulled_cache || await window.bootlegger.main.msg_traverser(this.chan_id, this.worker_alive, msg_offs, 56)
 		this.qitems = msgs.media_units || msgs;
+		console.log('unlock nav')
+		console.log('Pages:', this.pages)
 		this.traversing = false;
 
 
@@ -2140,6 +2145,7 @@ class gridmaker
 		if (!this.pages[page_index]){return false}
 
 		print('Pulling page from cache index', page_index)
+	console.log('pull shit from cache ???', page_index)
 
 		var standard_queue = []
 		for (var med in this.pages[page_index].media){
@@ -2289,7 +2295,7 @@ window.bootlegger.grid.load_prev_page = function(){
 
 window.bootlegger.grid.maximize_image = async function(tgt){
 	$('body #cinema_ds_fullscreen').remove()
-	$('body').append(`<img id="cinema_ds_fullscreen" src="">`)
+	$('body').append(`<div id="cinema_ds_fullscreen" src=""></div>`)
 	var media_full = null;
 	if (tgt.getAttribute('full_as_thumb') == 'true'){
 		var media_full = tgt.getAttribute('src')
@@ -2301,7 +2307,7 @@ window.bootlegger.grid.maximize_image = async function(tgt){
 		})
 	}
 
-	$('body #cinema_ds_fullscreen').attr('src', media_full)
+	$('body #cinema_ds_fullscreen').replaceWith(`<img id="cinema_ds_fullscreen" src="${media_full}">`)
 }
 
 window.bootlegger.grid.maximize_video = function(tgt){
@@ -2581,6 +2587,15 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 			})
 
 			for (var embed of msg.attachments.concat(msg.embeds)){
+				print('treating embed', embed)
+
+
+				if (embed.provider){
+					if (embed.provider.name.lower() == 'youtube'){
+						continue
+					}
+				}
+
 				embed.lizard_id = lizard.rndwave(32)
 				found_msgs.push(embed)
 				print('found embed', embed)
@@ -2596,8 +2611,13 @@ window.bootlegger.main.cache_item = function(elem, id){
 }
 
 
-window.bootlegger.main.media_queue_processor = async function(media_queue, break_signal, callback_func=null, wait=false)
+window.bootlegger.main.media_queue_processor = async function(media_queue, break_signal, callback_func=null, waits=true)
 {
+	if (window.bootlegger.grid.current_page_index >= 25){
+		var wait = false
+	}else{
+		var wait = false
+	}
 	print('Processing media queue', media_queue.qitems)
 	if (break_signal.alive != true){return []}
 
@@ -2650,7 +2670,7 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 
 			}else{
 
-				const placeholder = $('<img class="cinema_ds_img_entry placeholder">')
+				const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
 				$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
 				elem
 				.then(function(media_unit) {

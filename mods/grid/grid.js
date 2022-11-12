@@ -60,8 +60,11 @@ class gridmaker
 
 		// traverse through raw discord messages and find suitable ones
 		this.traversing = true;
+		console.log('Lock nav')
 		const msgs = pulled_cache || await $all.main.msg_traverser(this.chan_id, this.worker_alive, msg_offs, 56)
 		this.qitems = msgs.media_units || msgs;
+		console.log('unlock nav')
+		console.log('Pages:', this.pages)
 		this.traversing = false;
 
 		// write down last message id globally
@@ -122,6 +125,7 @@ class gridmaker
 		if (!this.pages[page_index]){return false}
 
 		print('Pulling page from cache index', page_index)
+	console.log('pull shit from cache ???', page_index)
 
 		// Always return an array of messages,
 		// becasue messages are pulled from cache in the main functions and not here
@@ -291,7 +295,7 @@ $this.load_prev_page = function(){
 $this.maximize_image = async function(tgt){
 	$('body #cinema_ds_fullscreen').remove()
 	// $('body').append(`<img id="cinema_ds_fullscreen" src="${tgt.getAttribute('fullsize')}">`)
-	$('body').append(`<img id="cinema_ds_fullscreen" src="">`)
+	$('body').append(`<div id="cinema_ds_fullscreen" src=""></div>`)
 	var media_full = null;
 	if (tgt.getAttribute('full_as_thumb') == 'true'){
 		var media_full = tgt.getAttribute('src')
@@ -303,7 +307,7 @@ $this.maximize_image = async function(tgt){
 		})
 	}
 
-	$('body #cinema_ds_fullscreen').attr('src', media_full)
+	$('body #cinema_ds_fullscreen').replaceWith(`<img id="cinema_ds_fullscreen" src="${media_full}">`)
 }
 
 $this.maximize_video = function(tgt){

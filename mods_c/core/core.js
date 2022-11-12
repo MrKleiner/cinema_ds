@@ -10,6 +10,7 @@ if (!window.bootlegger.core){window.bootlegger.core={}};
 // rebinds
 // python-like stuff
 window.print = console.log;
+// window.print = function(){};
 const obj_url = (window.URL || window.webkitURL); 
 
 
@@ -203,7 +204,7 @@ window.bootlegger.core.fetch = function(params)
 // Grant all domains permission
 // by fetching a random URL which would prompt stuff to user
 window.bootlegger.core.fetch({
-	'url':'https://discord.com'
+	'url':'https://de.wikipedia.org/wiki/Wikipedia:Hauptseite'
 })
 
 // custom local storage binds
@@ -221,3 +222,4 @@ localStorage.getItem = function(item)
 
 // when url changes - flush stuff and load new
 window.addEventListener('urlchange', (info) => window.bootlegger.main.url_switch_protocol());
+

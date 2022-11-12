@@ -284,6 +284,24 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 			// Concat embeds and attachments of the message and add all of these entries
 			// to the global media queue
 			for (var embed of msg.attachments.concat(msg.embeds)){
+				print('treating embed', embed)
+				// important todo: due to files not being displayed anyhow - pages appear empty
+				// same goes for youtube embeds, for now
+
+				// if (embed.lizard_type == 'attachment'){
+				// 	if (!embed.content_type){continue}
+				// 	if (!embed.content_type.includes('image') && !embed.content_type.includes('video') && !embed.content_type.includes('article')){
+				// 		continue
+				// 	}
+				// }
+
+				// simply skip youtube shit, for now
+				if (embed.provider){
+					if (embed.provider.name.lower() == 'youtube'){
+						continue
+					}
+				}
+
 				// assign a unique id to this element
 				embed.lizard_id = lizard.rndwave(32)
 				found_msgs.push(embed)
@@ -304,8 +322,13 @@ window.bootlegger.main.cache_item = function(elem, id){
 // process media elements
 // the dynamic behaviour is preserved, but an object with .qitems array
 // also takes the alive status
-window.bootlegger.main.media_queue_processor = async function(media_queue, break_signal, callback_func=null, wait=false)
+window.bootlegger.main.media_queue_processor = async function(media_queue, break_signal, callback_func=null, waits=true)
 {
+	if (window.bootlegger.grid.current_page_index >= 25){
+		var wait = false
+	}else{
+		var wait = false
+	}
 	print('Processing media queue', media_queue.qitems)
 	// die if asked to
 	if (break_signal.alive != true){return []}
@@ -386,7 +409,7 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 			}else{
 
 				// spawn a placeholder
-				const placeholder = $('<img class="cinema_ds_img_entry placeholder">')
+				const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
 				$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
 				// queue placeholder replacement with the actual stuff once it's fully loaded
 				elem
