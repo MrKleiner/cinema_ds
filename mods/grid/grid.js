@@ -86,6 +86,7 @@ class gridmaker
 		if (cache_size > this.cache_size){
 			this.del_page_from_cache($this.current_page_index - this.cache_size)
 		}
+		print('writing down last offset', msgs.last_id || this.pages[$this.current_page_index].offs)
 		// create new cache
 		var page_cache = {
 			// todo: it's also possible to pull original id from original array
@@ -125,7 +126,6 @@ class gridmaker
 		if (!this.pages[page_index]){return false}
 
 		print('Pulling page from cache index', page_index)
-	console.log('pull shit from cache ???', page_index)
 
 		// Always return an array of messages,
 		// becasue messages are pulled from cache in the main functions and not here
@@ -232,7 +232,7 @@ class gridmaker
 		this.abort()
 
 		$this.current_page_index += 1
-		print('Next page index:', $this.current_page_index, 'pages:', this.pages, 'offset from', $this.current_page_index - 1)
+		print('Next page index:', $this.current_page_index, 'pages:', this.pages, 'offset from', $this.current_page_index - 1, 'got offset:', this.pages[$this.current_page_index - 1].offs)
 		this.load_page(this.pages[$this.current_page_index - 1].offs)
 	}
 

@@ -34,6 +34,16 @@ $this.open_pool_via_keybind = function(evt)
 	}
 }
 
+$this.buffer_equal = function(buf1, buf2)
+{
+	if (buf1.byteLength != buf2.byteLength) return false;
+	var dv1 = new Int8Array(buf1);
+	var dv2 = new Int8Array(buf2);
+	for (var i = 0 ; i != buf1.byteLength ; i++){
+		if (dv1[i] != dv2[i]) return false;
+	}
+	return true;
+}
 
 // ensures that the image container is present
 // present, but not visible
@@ -128,6 +138,7 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 	// it'd be better to "clear" the URL manually,
 	// but for now it's always done automatically inside bootleg fetch when url_params are present
 	// actually, it'd be better if it was a parameter for the fetch function, like "wipe original URL params"
+	
 	const media_bytes = await $all.core.fetch({
 		'url': blob_src,
 		'method': 'GET',
@@ -154,6 +165,157 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 	`);
 }
 
+$this.media_processor.imgur_album = async function(msg, break_signal={}, imgur_link)
+{
+
+	const album_id = new obj_url(imgur_link)
+
+	const raw_list = await $all.core.fetch({
+		'url': `https://imgur.com/a/${album_id.target.name}/layout/blog`,
+		'method': 'GET',
+		'load_as': 'text'
+	})
+
+	const regexp = /\{\"hash\":\"([\w\d]*)\"\,\"title\".*?\"ext\"\:\"(\.jpg|.png|.gif|.gifv|.mp4)\".*?\}/g;
+	const url_pairs = raw_list.matchAll(regexp);
+	var imgs = []
+	var fuck_imgur = []
+	for (let match of url_pairs) {
+		if (break_signal.alive != true){return}
+
+		var imglink = match[1] + match[2]
+		var placeholder = $this.spawn_placeholder()
+		var imgbytes = await $all.core.fetch({
+			'url': `https://i.imgur.com/${imglink}`,
+			'method': 'GET',
+			'load_as': 'buffer_raw'
+		})
+		if (break_signal.alive != true){return}
+
+		// FOR WHATEVER REASON IMGUR DOUBLES ALL IMAGES ???!!!!!
+		// todo: find a more graceful way of continuing
+		var dicks = false
+		for (let fuckoff of fuck_imgur){
+			if ($this.buffer_equal(fuckoff, imgbytes) == true){
+				var dicks = true
+				placeholder.remove()
+				break
+			}
+		}
+		if (dicks == true){continue}
+		fuck_imgur.push(imgbytes)
+
+		imgbytes = $all.core.buffer_to_url(imgbytes)
+
+		placeholder.replaceWith(`
+			<div 
+				class="cinema_ds_img_entry"
+				lizard_id="${msg.lizard_id}"
+				src="${imgbytes}"
+				draggable="false"
+				blob_src="${imglink}"
+				fullsize="${imgbytes}"
+				src_msg_id="${msg.ds_id}"
+				full_as_thumb="true"
+			>
+				<img src="${imgbytes}">
+			</div>
+		`)
+	}
+
+	return true
+
+}
+
+$this.spawn_placeholder = function()
+{
+	const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
+	$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
+	return placeholder
+}
+
+// $this.media_cache[media_elem.attr('lizard_id')] = media_elem
+// process a given message
+// important todo: this is extremely fucking stupid.
+// Shit was working PERFECTLY FINE
+// all of this just to support the stupid fucking imgur shit...
+// is it really worth it?
+// please kill me
+$this.msg_processor = async function(msg, break_signal={})
+{
+	if (break_signal.alive != true){return}
+
+	// get the message type. Smartly
+	const as_emb = msg.lizard_type == 'embed';
+	const media_type_key = as_emb ? 'type' : 'content_type';
+	print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
+
+
+	// todo: proper pattern matching
+	
+	//
+	// first, try matching non-controversial cases, like link prefixes
+	//
+
+
+	//
+	// imgur retarded shit
+	//
+	if (msg.lizard_type == 'embed'){
+		if (msg.url.lower().includes('imgur.com/a')){
+			await $this.media_processor.imgur_album(msg, break_signal, msg.url)
+			return true
+		}
+	}
+
+	//
+	// regular (?) images
+	//
+	if (media_types.image.includes(msg[media_type_key])){
+		msg['thumbnail'] = {}
+		msg.thumbnail['width'] = msg.width
+		msg.thumbnail['height'] = msg.height
+		msg.thumbnail['proxy_url'] = msg.proxy_url
+		msg.thumbnail['url'] = msg.url
+		var placeholder = $this.spawn_placeholder()
+		// var elem = await $this.media_processor.image(msg)
+		const elem = await $this.media_processor.image(msg)
+		$this.media_cache[msg.lizard_id] = elem
+		placeholder.replaceWith(elem)
+		return true
+	}
+
+	//
+	// regular (?) and gifv videos
+	//
+	if (media_types.video.includes(msg[media_type_key])){
+		// var elem = await $this.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
+		var placeholder = $this.spawn_placeholder()
+		const elem = await $this.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
+		$this.media_cache[msg.lizard_id] = elem
+		placeholder.replaceWith(elem)
+		return true
+	}
+
+	//
+	// Articles
+	//
+
+	// Text only based articles are bad
+	// a good article should have a thumbnail property
+	if (msg[media_type_key] == 'article' && msg.thumbnail){
+		msg.url = msg.thumbnail.url
+		// var elem = await $this.media_processor.image(current_msg.thumbnail.url, true)
+		// var elem = await $this.media_processor.image(current_msg)
+		var placeholder = $this.spawn_placeholder()
+		placeholder.replaceWith(await $this.media_processor.image(msg))
+		return true
+	}
+
+}
+
+
+
 
 $this.url_switch_protocol = function(){
 	print('url switch protocol empty')
@@ -163,8 +325,8 @@ $this.url_switch_protocol = function(){
 
 
 // load messages from discord from a desired channel
-// ALL channels are unique and do NOT depend on server id
-$this.get_messages = async function(chan_id, before=null)
+// ALL channels are unique and do NOT depend on server id or anything else
+$this.get_messages = async function(chan_id, before=null, after=null)
 {
 	// use fetch, because it'd be weird to force-use the Tampermonkey OP API
 	// even for the links which are within the discord domain
@@ -172,8 +334,8 @@ $this.get_messages = async function(chan_id, before=null)
 		var input_prms = {
 			'limit': 100
 		}
-		if (before){
-			input_prms['before'] = before
+		if (before || after){
+			input_prms[before ? 'before' : 'after'] = before || after
 		}
 		const urlParams = new URLSearchParams(input_prms);
 		fetch(`https://discord.com/api/v9/channels/${chan_id}/messages?${urlParams.toString()}`, {
@@ -204,27 +366,6 @@ $this.scroll_watcher = function(mpool)
 		print('Reached the top of the media pool, loading more messages')
 		// $this.traverse_more_messages()
 	}
-}
-
-// this triggers when URL was switched
-$this.url_switch = function()
-{
-	print('URL switch detected...')
-	// first - kill the iterator
-	$this.media_queue.flush()
-	// now forget the last id
-	$this.last_msg_id = null;
-	// empty the container
-	$('#cinema_ds_main_window #cinemads_media_pool').empty();
-	// ensure that container exists...
-	$this.ensure_container_exists(true)
-	// logging
-	$this.total_channel_msgs = 0
-	// now re-run the iterator, only if the thing wasnt hidden
-	if (document.body.getAttribute('cnds_shown') == 'yes'){
-		$this.media_queue.ensure()
-	}
-	
 }
 
 
@@ -310,15 +451,12 @@ $this.msg_traverser = async function(chain_id=null, break_signal={}, msg_offs=nu
 	return {'media_units': found_msgs, 'last_id': last_msg_id}
 }
 
-$this.cache_item = function(elem, id){
-
-}
 
 
 // process media elements
 // the dynamic behaviour is preserved, but an object with .qitems array
 // also takes the alive status
-$this.media_queue_processor = async function(media_queue, break_signal, callback_func=null, wait=false)
+$this.media_queue_processor = async function(media_queue, break_signal={}, callback_func=null, wait=false)
 {
 	print('Processing media queue', media_queue.qitems)
 	// die if asked to
@@ -342,82 +480,13 @@ $this.media_queue_processor = async function(media_queue, break_signal, callback
 			continue
 		}
 
-		// get the message type. Smartly
-		var as_emb = current_msg.lizard_type == 'embed'
-		var media_type_key = as_emb ? 'type' : 'content_type'
-
-		print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
-
-		// treat the message according to type
-
-		// regular (?) images
-		if (media_types.image.includes(current_msg[media_type_key])){
-			current_msg['thumbnail'] = {}
-			current_msg.thumbnail['width'] = current_msg.width
-			current_msg.thumbnail['height'] = current_msg.height
-			current_msg.thumbnail['proxy_url'] = current_msg.proxy_url
-			current_msg.thumbnail['url'] = current_msg.url
-			// var elem = await $this.media_processor.image(current_msg)
-			var elem = $this.media_processor.image(current_msg)
-		}
-		// regular (?) and gifv videos
-		if (media_types.video.includes(current_msg[media_type_key])){
-			// var elem = await $this.media_processor.video(current_msg, as_emb, current_msg[media_type_key] == 'gifv')
-			var elem = $this.media_processor.video(current_msg, as_emb, current_msg[media_type_key] == 'gifv')
-		}
-		// special: article
-		// text only based articles are bad
-		// a good article should have a thumbnail property
-		if (current_msg[media_type_key] == 'article' && current_msg.thumbnail){
-			current_msg.url = current_msg.thumbnail.url
-			// var elem = await $this.media_processor.image(current_msg.thumbnail.url, true)
-			// var elem = await $this.media_processor.image(current_msg)
-			var elem = $this.media_processor.image(current_msg)
-		}
-
-
-		// die if not alive anymore
-		if (break_signal.alive != true){break}
-
-		// append the resulting element to the pool
-		// when this check fails it means that no corresponding type was found and message element wasn't created
-		if (elem){
-			// when wait is true then it means that images have to be loaded one by one and not in batch
-			// otherwise - create placeholder elements and start loading them all simultaneously
-			if (wait == true){
-				// wait for media to fully load
-				const media_unit = await elem
-				if (break_signal.alive != true){break}
-				// trigger callback, if any
-				if (callback_func) {callback_func(media_unit)}
-				// add element to the function output
-				media_items.push(media_unit)
-				// cache the element
-				$this.media_cache[media_unit.attr('lizard_id')] = media_unit
-				// add element to the page
-				$('#cinema_ds_main_window #cinemads_media_pool').prepend(media_unit)
-
-			}else{
-
-				// spawn a placeholder
-				const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
-				$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
-				// queue placeholder replacement with the actual stuff once it's fully loaded
-				elem
-				.then(function(media_unit) {
-					if (break_signal.alive != true){return media_items}
-					
-					// $('#cinema_ds_main_window #cinemads_media_pool').prepend(media_unit)
-					// trigger callback, if any
-					if (callback_func) {callback_func(media_unit)}
-					// add the element to the function output
-					media_items.push(media_unit)
-					// cache the element
-					$this.media_cache[media_unit.attr('lizard_id')] = media_unit
-					// replace the placeholder with an actual element
-					placeholder.replaceWith(media_unit)
-				});
-			}
+		// treat the type
+		// todo: the bad thing about this is that the chain is quite deep now...
+		if (wait == true){
+			// todo: is it ok to await a function initialized earlier?
+			await $this.msg_processor(current_msg, break_signal)
+		}else{
+			$this.msg_processor(current_msg, break_signal)
 		}
 
 		// delete processed element from the queue
@@ -429,3 +498,4 @@ $this.media_queue_processor = async function(media_queue, break_signal, callback
 
 	return media_items
 }
+

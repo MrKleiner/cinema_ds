@@ -34,7 +34,7 @@
 // ==UserScript==
 // @name         cinema_ds
 // @namespace    http://tampermonkey.net/
-// @version      0.19
+// @version      0.23
 // @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @match        https://discord.com/*
@@ -58,6 +58,9 @@
 // Discord unbinds local storage methods to make the token unaccessible
 // ======================================================================
 
+// That's a wise decision. Let it be.
+
+// But the token is still needed, so
 // simply make the Tampermonkey script launch BEFORE discord...
 
 // actually, this is not accessible from console
@@ -410,6 +413,9 @@ class iguana
 				}
 				return sex
 			}
+			get no_search(){
+				return this.origin + this.pathname
+			}
 		}
 
 		window[identifier] = more_url
@@ -439,6 +445,11 @@ class iguana
 		window.float = float
 
 		function len(inp){
+			try {
+				if (this.isDict(inp)){
+					return Object.keys(inp).length
+				}
+			} catch (error) {}
 			try {
 				return inp.length
 			} catch (error) {
@@ -504,7 +515,9 @@ class iguana
 	};
 
 
-
+	isDict(v) {
+		return typeof v==='object' && v!==null && !(v instanceof Array) && !(v instanceof Date);
+	}
 
 
 
@@ -1911,11 +1924,15 @@ const media_types = {
 }
 
 
-
+window.bootlegger.core.buffer_to_url = function(buf){
+	const blb = new Blob([buf], {});
+	return obj_url.createObjectURL(blb)
+}
 
 
 window.bootlegger.core.fetch = function(params)
 {
+	print('input params:', params)
 	const func_prms = {
 		'url': params.url,
 		'method': params.method || 'GET',
@@ -1928,10 +1945,11 @@ window.bootlegger.core.fetch = function(params)
 
 	const mk_url_params = new URLSearchParams(func_prms.url_params);
 	const rq_url_clear = new obj_url(func_prms.url).no_search
+	print('OBJECT KEY LENGTH', Object.keys(func_prms.url_params).length)
 	const request_url = 
-		rq_url_clear ? (func_prms.url_params != {}) : func_prms.url
+		((Object.keys(func_prms.url_params).length > 0) ? rq_url_clear : func_prms.url)
 		+ 
-		((func_prms.url_params != {}) ? `?${mk_url_params.toString()}` : '')
+		((Object.keys(func_prms.url_params).length > 0) ? `?${mk_url_params.toString()}` : '')
 
 	const default_headers = {
 		'Accept': '*/*',
@@ -1959,14 +1977,12 @@ window.bootlegger.core.fetch = function(params)
 					}
 					if (func_prms.load_as == 'blob_url'){
 						print('current URK is', request_url)
-						const fuckoff = (new URL(request_url)).pathname.split('/').at(-1).split('.').at(-1)
-						print(fuckoff)
+						const fuckoff = (new URL(request_url)).target.suffix
 						const blb = new Blob([response.response], {type: `image/${fuckoff}`});
 						resolve(obj_url.createObjectURL(blb))
 					}
 					if (func_prms.load_as == 'text'){
 						const shite = response.responseText
-						print('tampermonkey', shite)
 						resolve(shite)
 					}
 					if (func_prms.load_as == 'json'){
@@ -2119,6 +2135,7 @@ class gridmaker
 		if (cache_size > this.cache_size){
 			this.del_page_from_cache(window.bootlegger.grid.current_page_index - this.cache_size)
 		}
+		print('writing down last offset', msgs.last_id || this.pages[window.bootlegger.grid.current_page_index].offs)
 		var page_cache = {
 			'offs': msgs.last_id || this.pages[window.bootlegger.grid.current_page_index].offs,
 			'cached': true,
@@ -2145,7 +2162,6 @@ class gridmaker
 		if (!this.pages[page_index]){return false}
 
 		print('Pulling page from cache index', page_index)
-	console.log('pull shit from cache ???', page_index)
 
 		var standard_queue = []
 		for (var med in this.pages[page_index].media){
@@ -2236,7 +2252,7 @@ class gridmaker
 		this.abort()
 
 		window.bootlegger.grid.current_page_index += 1
-		print('Next page index:', window.bootlegger.grid.current_page_index, 'pages:', this.pages, 'offset from', window.bootlegger.grid.current_page_index - 1)
+		print('Next page index:', window.bootlegger.grid.current_page_index, 'pages:', this.pages, 'offset from', window.bootlegger.grid.current_page_index - 1, 'got offset:', this.pages[window.bootlegger.grid.current_page_index - 1].offs)
 		this.load_page(this.pages[window.bootlegger.grid.current_page_index - 1].offs)
 	}
 
@@ -2391,6 +2407,16 @@ window.bootlegger.main.open_pool_via_keybind = function(evt)
 	}
 }
 
+window.bootlegger.main.buffer_equal = function(buf1, buf2)
+{
+	if (buf1.byteLength != buf2.byteLength) return false;
+	var dv1 = new Int8Array(buf1);
+	var dv2 = new Int8Array(buf2);
+	for (var i = 0 ; i != buf1.byteLength ; i++){
+		if (dv1[i] != dv2[i]) return false;
+	}
+	return true;
+}
 
 window.bootlegger.main.ensure_container_exists = function(silent=false)
 {
@@ -2468,6 +2494,7 @@ window.bootlegger.main.media_processor.image = async function(msg, as_url=false,
 	const fullsize_link = as_url ? msg : msg.url
 
 	
+	
 	const media_bytes = await window.bootlegger.core.fetch({
 		'url': blob_src,
 		'method': 'GET',
@@ -2493,6 +2520,125 @@ window.bootlegger.main.media_processor.image = async function(msg, as_url=false,
 	`);
 }
 
+window.bootlegger.main.media_processor.imgur_album = async function(msg, break_signal={}, imgur_link)
+{
+
+	const album_id = new obj_url(imgur_link)
+
+	const raw_list = await window.bootlegger.core.fetch({
+		'url': `https://imgur.com/a/${album_id.target.name}/layout/blog`,
+		'method': 'GET',
+		'load_as': 'text'
+	})
+
+	const regexp = /\{\"hash\":\"([\w\d]*)\"\,\"title\".*?\"ext\"\:\"(\.jpg|.png|.gif|.gifv|.mp4)\".*?\}/g;
+	const url_pairs = raw_list.matchAll(regexp);
+	var imgs = []
+	var fuck_imgur = []
+	for (let match of url_pairs) {
+		if (break_signal.alive != true){return}
+
+		var imglink = match[1] + match[2]
+		var placeholder = window.bootlegger.main.spawn_placeholder()
+		var imgbytes = await window.bootlegger.core.fetch({
+			'url': `https://i.imgur.com/${imglink}`,
+			'method': 'GET',
+			'load_as': 'buffer_raw'
+		})
+		if (break_signal.alive != true){return}
+
+		var dicks = false
+		for (let fuckoff of fuck_imgur){
+			if (window.bootlegger.main.buffer_equal(fuckoff, imgbytes) == true){
+				var dicks = true
+				placeholder.remove()
+				break
+			}
+		}
+		if (dicks == true){continue}
+		fuck_imgur.push(imgbytes)
+
+		imgbytes = window.bootlegger.core.buffer_to_url(imgbytes)
+
+		placeholder.replaceWith(`
+			<div 
+				class="cinema_ds_img_entry"
+				lizard_id="${msg.lizard_id}"
+				src="${imgbytes}"
+				draggable="false"
+				blob_src="${imglink}"
+				fullsize="${imgbytes}"
+				src_msg_id="${msg.ds_id}"
+				full_as_thumb="true"
+			>
+				<img src="${imgbytes}">
+			</div>
+		`)
+	}
+
+	return true
+
+}
+
+window.bootlegger.main.spawn_placeholder = function()
+{
+	const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
+	$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
+	return placeholder
+}
+
+window.bootlegger.main.msg_processor = async function(msg, break_signal={})
+{
+	if (break_signal.alive != true){return}
+
+	const as_emb = msg.lizard_type == 'embed';
+	const media_type_key = as_emb ? 'type' : 'content_type';
+	print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
+
+
+	
+
+
+	if (msg.lizard_type == 'embed'){
+		if (msg.url.lower().includes('imgur.com/a')){
+			await window.bootlegger.main.media_processor.imgur_album(msg, break_signal, msg.url)
+			return true
+		}
+	}
+
+	if (media_types.image.includes(msg[media_type_key])){
+		msg['thumbnail'] = {}
+		msg.thumbnail['width'] = msg.width
+		msg.thumbnail['height'] = msg.height
+		msg.thumbnail['proxy_url'] = msg.proxy_url
+		msg.thumbnail['url'] = msg.url
+		var placeholder = window.bootlegger.main.spawn_placeholder()
+		const elem = await window.bootlegger.main.media_processor.image(msg)
+		window.bootlegger.main.media_cache[msg.lizard_id] = elem
+		placeholder.replaceWith(elem)
+		return true
+	}
+
+	if (media_types.video.includes(msg[media_type_key])){
+		var placeholder = window.bootlegger.main.spawn_placeholder()
+		const elem = await window.bootlegger.main.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
+		window.bootlegger.main.media_cache[msg.lizard_id] = elem
+		placeholder.replaceWith(elem)
+		return true
+	}
+
+
+	if (msg[media_type_key] == 'article' && msg.thumbnail){
+		msg.url = msg.thumbnail.url
+		var placeholder = window.bootlegger.main.spawn_placeholder()
+		placeholder.replaceWith(await window.bootlegger.main.media_processor.image(msg))
+		return true
+	}
+
+}
+
+
+
 
 window.bootlegger.main.url_switch_protocol = function(){
 	print('url switch protocol empty')
@@ -2501,14 +2647,14 @@ window.bootlegger.main.url_switch_protocol = function(){
 
 
 
-window.bootlegger.main.get_messages = async function(chan_id, before=null)
+window.bootlegger.main.get_messages = async function(chan_id, before=null, after=null)
 {
 	return new Promise(function(resolve, reject){
 		var input_prms = {
 			'limit': 100
 		}
-		if (before){
-			input_prms['before'] = before
+		if (before || after){
+			input_prms[before ? 'before' : 'after'] = before || after
 		}
 		const urlParams = new URLSearchParams(input_prms);
 		fetch(`https://discord.com/api/v9/channels/${chan_id}/messages?${urlParams.toString()}`, {
@@ -2535,20 +2681,6 @@ window.bootlegger.main.scroll_watcher = function(mpool)
 	if (mpool.scrollTop == 0 && window.bootlegger.main.media_queue_active != true){
 		print('Reached the top of the media pool, loading more messages')
 	}
-}
-
-window.bootlegger.main.url_switch = function()
-{
-	print('URL switch detected...')
-	window.bootlegger.main.media_queue.flush()
-	window.bootlegger.main.last_msg_id = null;
-	$('#cinema_ds_main_window #cinemads_media_pool').empty();
-	window.bootlegger.main.ensure_container_exists(true)
-	window.bootlegger.main.total_channel_msgs = 0
-	if (document.body.getAttribute('cnds_shown') == 'yes'){
-		window.bootlegger.main.media_queue.ensure()
-	}
-	
 }
 
 
@@ -2606,18 +2738,10 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 	return {'media_units': found_msgs, 'last_id': last_msg_id}
 }
 
-window.bootlegger.main.cache_item = function(elem, id){
-
-}
 
 
-window.bootlegger.main.media_queue_processor = async function(media_queue, break_signal, callback_func=null, waits=true)
+window.bootlegger.main.media_queue_processor = async function(media_queue, break_signal={}, callback_func=null, wait=false)
 {
-	if (window.bootlegger.grid.current_page_index >= 25){
-		var wait = false
-	}else{
-		var wait = false
-	}
 	print('Processing media queue', media_queue.qitems)
 	if (break_signal.alive != true){return []}
 
@@ -2634,54 +2758,10 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 			continue
 		}
 
-		var as_emb = current_msg.lizard_type == 'embed'
-		var media_type_key = as_emb ? 'type' : 'content_type'
-
-		print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
-
-
-		if (media_types.image.includes(current_msg[media_type_key])){
-			current_msg['thumbnail'] = {}
-			current_msg.thumbnail['width'] = current_msg.width
-			current_msg.thumbnail['height'] = current_msg.height
-			current_msg.thumbnail['proxy_url'] = current_msg.proxy_url
-			current_msg.thumbnail['url'] = current_msg.url
-			var elem = window.bootlegger.main.media_processor.image(current_msg)
-		}
-		if (media_types.video.includes(current_msg[media_type_key])){
-			var elem = window.bootlegger.main.media_processor.video(current_msg, as_emb, current_msg[media_type_key] == 'gifv')
-		}
-		if (current_msg[media_type_key] == 'article' && current_msg.thumbnail){
-			current_msg.url = current_msg.thumbnail.url
-			var elem = window.bootlegger.main.media_processor.image(current_msg)
-		}
-
-
-		if (break_signal.alive != true){break}
-
-		if (elem){
-			if (wait == true){
-				const media_unit = await elem
-				if (break_signal.alive != true){break}
-				if (callback_func) {callback_func(media_unit)}
-				media_items.push(media_unit)
-				window.bootlegger.main.media_cache[media_unit.attr('lizard_id')] = media_unit
-				$('#cinema_ds_main_window #cinemads_media_pool').prepend(media_unit)
-
-			}else{
-
-				const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
-				$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
-				elem
-				.then(function(media_unit) {
-					if (break_signal.alive != true){return media_items}
-					
-					if (callback_func) {callback_func(media_unit)}
-					media_items.push(media_unit)
-					window.bootlegger.main.media_cache[media_unit.attr('lizard_id')] = media_unit
-					placeholder.replaceWith(media_unit)
-				});
-			}
+		if (wait == true){
+			await window.bootlegger.main.msg_processor(current_msg, break_signal)
+		}else{
+			window.bootlegger.main.msg_processor(current_msg, break_signal)
 		}
 
 		media_queue.qitems.shift()
@@ -2692,3 +2772,4 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 
 	return media_items
 }
+

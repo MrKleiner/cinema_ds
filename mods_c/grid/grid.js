@@ -90,6 +90,7 @@ class gridmaker
 		if (cache_size > this.cache_size){
 			this.del_page_from_cache(window.bootlegger.grid.current_page_index - this.cache_size)
 		}
+		print('writing down last offset', msgs.last_id || this.pages[window.bootlegger.grid.current_page_index].offs)
 		// create new cache
 		var page_cache = {
 			// todo: it's also possible to pull original id from original array
@@ -129,7 +130,6 @@ class gridmaker
 		if (!this.pages[page_index]){return false}
 
 		print('Pulling page from cache index', page_index)
-	console.log('pull shit from cache ???', page_index)
 
 		// Always return an array of messages,
 		// becasue messages are pulled from cache in the main functions and not here
@@ -236,7 +236,7 @@ class gridmaker
 		this.abort()
 
 		window.bootlegger.grid.current_page_index += 1
-		print('Next page index:', window.bootlegger.grid.current_page_index, 'pages:', this.pages, 'offset from', window.bootlegger.grid.current_page_index - 1)
+		print('Next page index:', window.bootlegger.grid.current_page_index, 'pages:', this.pages, 'offset from', window.bootlegger.grid.current_page_index - 1, 'got offset:', this.pages[window.bootlegger.grid.current_page_index - 1].offs)
 		this.load_page(this.pages[window.bootlegger.grid.current_page_index - 1].offs)
 	}
 

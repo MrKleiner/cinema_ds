@@ -28,7 +28,10 @@ const media_types = {
 }
 
 
-
+$this.buffer_to_url = function(buf){
+	const blb = new Blob([buf], {});
+	return obj_url.createObjectURL(blb)
+}
 
 
 // use tampermonkey API to bypass the retarded CORS rubbish
@@ -42,6 +45,7 @@ const media_types = {
 // fun fact: this function doesn't do what it was supposed to do
 $this.fetch = function(params)
 {
+	print('input params:', params)
 	// fuck, too bad js doesn't accept function parameters the same way python does
 	const func_prms = {
 		'url': params.url,
@@ -61,10 +65,11 @@ $this.fetch = function(params)
 	// Collapse into final
 	// nothing is added if the url params dict is empty
 	// todo: is it really neccessary to spam brackets like that ?
+	print('OBJECT KEY LENGTH', Object.keys(func_prms.url_params).length)
 	const request_url = 
-		rq_url_clear ? (func_prms.url_params != {}) : func_prms.url
+		((Object.keys(func_prms.url_params).length > 0) ? rq_url_clear : func_prms.url)
 		+ 
-		((func_prms.url_params != {}) ? `?${mk_url_params.toString()}` : '')
+		((Object.keys(func_prms.url_params).length > 0) ? `?${mk_url_params.toString()}` : '')
 
 	// headers
 	const default_headers = {
@@ -102,14 +107,15 @@ $this.fetch = function(params)
 					if (func_prms.load_as == 'blob_url'){
 						// const blb = new Blob([response.response], {});
 						print('current URK is', request_url)
-						const fuckoff = (new URL(request_url)).pathname.split('/').at(-1).split('.').at(-1)
-						print(fuckoff)
+						const fuckoff = (new URL(request_url)).target.suffix
+						// print(fuckoff)
+						// print('blob type:', fuckoff)
 						const blb = new Blob([response.response], {type: `image/${fuckoff}`});
 						resolve(obj_url.createObjectURL(blb))
 					}
 					if (func_prms.load_as == 'text'){
 						const shite = response.responseText
-						print('tampermonkey', shite)
+						// print('tampermonkey', shite)
 						resolve(shite)
 					}
 					if (func_prms.load_as == 'json'){
