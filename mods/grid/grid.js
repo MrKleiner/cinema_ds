@@ -23,7 +23,7 @@ class gridmaker
 		this.chan_id = (new URL(window.location.href)).target.name
 		this.qitems = []
 		// how many pages to keep in cache
-		this.cache_size = 5
+		this.cache_size = 3
 
 		// Pages loaded so far
 		// now with caching

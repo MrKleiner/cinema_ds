@@ -508,6 +508,29 @@ class iguana
 		}
 
 
+		function compare_buffers(buff2){
+			if (this.byteLength != buf2.byteLength) return false;
+			var dv1 = new Int8Array(this);
+			var dv2 = new Int8Array(buf2);
+			for (var i = 0 ; i != this.byteLength ; i++){
+				if (dv1[i] != dv2[i]) return false;
+			}
+			return true;
+		}
+
+		ArrayBuffer.sameAs = compare_buffers;
+		Uint8Array.sameAs = compare_buffers;
+		Uint16Array.sameAs = compare_buffers;
+		Uint32Array.sameAs = compare_buffers;
+		Uint8ClampedArray.sameAs = compare_buffers;
+		BigUint64Array.sameAs = compare_buffers;
+		Int8Array.sameAs = compare_buffers;
+		Int16Array.sameAs = compare_buffers;
+		Float32Array.sameAs = compare_buffers;
+		Float64Array.sameAs = compare_buffers;
+		BigInt64Array.sameAs = compare_buffers;
+
+
 	};
 
 	get info() {
@@ -1899,10 +1922,22 @@ if (!window.bootlegger){window.bootlegger = {}};
 if (!window.bootlegger.core){window.bootlegger.core={}};
 
 
+window.mein_sleep = {}
 
+async function jsleep(amt=500, ref='a') {
 
+	return new Promise(function(resolve, reject){
+	    window.mein_sleep[ref] = setTimeout(function () {
+			resolve(true)
+	    }, amt);
+	});
+}
 
-window.print = console.log;
+function rnd_interval(min, max) { // min and max included 
+	return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
+window.print = function(){};
 const obj_url = (window.URL || window.webkitURL); 
 
 
@@ -1913,13 +1948,25 @@ const media_types = {
 		'image/jpeg',
 		'image/webp',
 		'image/gif',
-		'image/x-ms-bmp'
+		'image/x-ms-bmp',
+		'png',
+		'jpg',
+		'jpeg',
+		'bmp',
+		'webp',
+		'apng',
+		'gif',
+		'jfif'
 	],
 	'video': [
 		'gifv',
 		'video',
 		'video/mp4',
-		'video/quicktime'
+		'video/quicktime',
+		'mp4',
+		'mov',
+		'webm',
+		'avi'
 	]
 }
 
@@ -2100,7 +2147,7 @@ class gridmaker
 		this.msg_offset = null;
 		this.chan_id = (new URL(window.location.href)).target.name
 		this.qitems = []
-		this.cache_size = 5
+		this.cache_size = 3
 
 		this.pages = []
 
@@ -2593,8 +2640,12 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 
 	const as_emb = msg.lizard_type == 'embed';
 	const media_type_key = as_emb ? 'type' : 'content_type';
+	if (!as_emb && !msg[media_type_key]){
+		const mk_ext = new obj_url(msg.url) 
+		msg[media_type_key] = mk_ext.target.suffix
+	}
 	print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
-
+	console.log('Content type', msg[media_type_key], media_type_key, msg.lizard_type)
 
 	
 
@@ -2621,6 +2672,7 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 
 	if (media_types.video.includes(msg[media_type_key])){
 		var placeholder = window.bootlegger.main.spawn_placeholder()
+		await jsleep(rnd_interval(0, 137))
 		const elem = await window.bootlegger.main.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
 		window.bootlegger.main.media_cache[msg.lizard_id] = elem
 		placeholder.replaceWith(elem)
@@ -2651,18 +2703,38 @@ window.bootlegger.main.get_messages = async function(chan_id, before=null, after
 {
 	return new Promise(function(resolve, reject){
 		var input_prms = {
-			'limit': 100
+			'limit': 50
 		}
 		if (before || after){
 			input_prms[before ? 'before' : 'after'] = before || after
 		}
 		const urlParams = new URLSearchParams(input_prms);
+		const super_props = {
+			'os': 'Windows',
+			'browser': 'Chrome',
+			'device': '',
+			'system_locale': 'en-US',
+			'browser_user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+			'browser_version': '107.0.0.0',
+			'os_version': '10',
+			'referrer':'https://discord.com/',
+			'referring_domain': 'discord.com',
+			'referrer_current': '',
+			'referring_domain_current': '',
+			'release_channel': 'stable',
+			'client_build_number': window.bootlegger.core.app_ver || null,
+			'client_event_source': null
+		}
 		fetch(`https://discord.com/api/v9/channels/${chan_id}/messages?${urlParams.toString()}`, {
 			'headers': {
 				'accept': '*/*',
 				'cache-control': 'no-cache',
 				'pragma': 'no-cache',
-				'authorization': ds_token
+				'authorization': ds_token,
+				'cookie': document.cookie,
+				'x-super-properties': lizard.btoa(JSON.stringify(super_props)),
+				'x-debug-options': 'bugReporterEnabled',
+				'x-discord-locale': document.documentElement.lang
 			},
 			'method': 'GET',
 			'mode': 'cors',
@@ -2698,10 +2770,12 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 	print('Traversing info:', current_chan_id)
 
 	while (break_signal.alive && found_msgs.length <= limit){
-		print('Getting 100 messages...')
+		const interval = rnd_interval(139, 247)
+		await jsleep(interval)
+		print('Getting 50 messages...', 'wifite', interval)
 		var messages = await window.bootlegger.main.get_messages(current_chan_id, last_msg_id)
 		if (messages.length <= 0){break}
-		print('Got 100<= messages...', messages)
+		print('Got 50<= messages...', messages)
 		var last_msg_id = messages.at(-1).id
 		for (var msg of messages){
 			total_msgs_scanned += 1
@@ -2750,7 +2824,7 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 	while (break_signal.alive){
 		var current_msg = media_queue.qitems[0];
 		print('Processing a message...', current_msg);
-		if (!current_msg){break}
+		if (!current_msg){print('invalid message', current_msg);break}
 
 		if (current_msg.lizard_id in window.bootlegger.main.media_cache){
 			$('#cinema_ds_main_window #cinemads_media_pool').prepend(window.bootlegger.main.media_cache[current_msg.lizard_id])

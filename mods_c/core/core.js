@@ -4,13 +4,25 @@ if (!window.bootlegger){window.bootlegger = {}};
 if (!window.bootlegger.core){window.bootlegger.core={}};
 
 
+window.mein_sleep = {}
 
+async function jsleep(amt=500, ref='a') {
 
+	return new Promise(function(resolve, reject){
+	    window.mein_sleep[ref] = setTimeout(function () {
+			resolve(true)
+	    }, amt);
+	});
+}
+
+function rnd_interval(min, max) { // min and max included 
+	return Math.floor(Math.random() * (max - min + 1) + min)
+}
 
 // rebinds
 // python-like stuff
-window.print = console.log;
-// window.print = function(){};
+// window.print = console.log;
+window.print = function(){};
 const obj_url = (window.URL || window.webkitURL); 
 
 
@@ -21,13 +33,25 @@ const media_types = {
 		'image/jpeg',
 		'image/webp',
 		'image/gif',
-		'image/x-ms-bmp'
+		'image/x-ms-bmp',
+		'png',
+		'jpg',
+		'jpeg',
+		'bmp',
+		'webp',
+		'apng',
+		'gif',
+		'jfif'
 	],
 	'video': [
 		'gifv',
 		'video',
 		'video/mp4',
-		'video/quicktime'
+		'video/quicktime',
+		'mp4',
+		'mov',
+		'webm',
+		'avi'
 	]
 }
 

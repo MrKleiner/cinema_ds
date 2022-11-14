@@ -252,8 +252,12 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 	// get the message type. Smartly
 	const as_emb = msg.lizard_type == 'embed';
 	const media_type_key = as_emb ? 'type' : 'content_type';
+	if (!as_emb && !msg[media_type_key]){
+		const mk_ext = new obj_url(msg.url) 
+		msg[media_type_key] = mk_ext.target.suffix
+	}
 	print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
-
+	console.log('Content type', msg[media_type_key], media_type_key, msg.lizard_type)
 
 	// todo: proper pattern matching
 	
@@ -282,6 +286,7 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 		msg.thumbnail['proxy_url'] = msg.proxy_url
 		msg.thumbnail['url'] = msg.url
 		var placeholder = window.bootlegger.main.spawn_placeholder()
+		// await jsleep(rnd_interval(0, 137))
 		// var elem = await window.bootlegger.main.media_processor.image(msg)
 		const elem = await window.bootlegger.main.media_processor.image(msg)
 		window.bootlegger.main.media_cache[msg.lizard_id] = elem
@@ -295,6 +300,7 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 	if (media_types.video.includes(msg[media_type_key])){
 		// var elem = await window.bootlegger.main.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
 		var placeholder = window.bootlegger.main.spawn_placeholder()
+		await jsleep(rnd_interval(0, 137))
 		const elem = await window.bootlegger.main.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
 		window.bootlegger.main.media_cache[msg.lizard_id] = elem
 		placeholder.replaceWith(elem)
@@ -336,18 +342,38 @@ window.bootlegger.main.get_messages = async function(chan_id, before=null, after
 	// even for the links which are within the discord domain
 	return new Promise(function(resolve, reject){
 		var input_prms = {
-			'limit': 100
+			'limit': 50
 		}
 		if (before || after){
 			input_prms[before ? 'before' : 'after'] = before || after
 		}
 		const urlParams = new URLSearchParams(input_prms);
+		const super_props = {
+			'os': 'Windows',
+			'browser': 'Chrome',
+			'device': '',
+			'system_locale': 'en-US',
+			'browser_user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+			'browser_version': '107.0.0.0',
+			'os_version': '10',
+			'referrer':'https://discord.com/',
+			'referring_domain': 'discord.com',
+			'referrer_current': '',
+			'referring_domain_current': '',
+			'release_channel': 'stable',
+			'client_build_number': window.bootlegger.core.app_ver || null,
+			'client_event_source': null
+		}
 		fetch(`https://discord.com/api/v9/channels/${chan_id}/messages?${urlParams.toString()}`, {
 			'headers': {
 				'accept': '*/*',
 				'cache-control': 'no-cache',
 				'pragma': 'no-cache',
-				'authorization': ds_token
+				'authorization': ds_token,
+				'cookie': document.cookie,
+				'x-super-properties': lizard.btoa(JSON.stringify(super_props)),
+				'x-debug-options': 'bugReporterEnabled',
+				'x-discord-locale': document.documentElement.lang
 			},
 			'method': 'GET',
 			'mode': 'cors',
@@ -395,12 +421,14 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 
 	// traverse
 	while (break_signal.alive && found_msgs.length <= limit){
-		print('Getting 100 messages...')
+		const interval = rnd_interval(139, 247)
+		await jsleep(interval)
+		print('Getting 50 messages...', 'wifite', interval)
 		// fetch messages from discord servers
 		var messages = await window.bootlegger.main.get_messages(current_chan_id, last_msg_id)
 		// if returned payload is empty, then it means that the beginning of the channel has been reached
 		if (messages.length <= 0){break}
-		print('Got 100<= messages...', messages)
+		print('Got 50<= messages...', messages)
 		// write down the last message id
 		var last_msg_id = messages.at(-1).id
 		// go through each one of them and discard the ones which don't have any attachments and embeds
@@ -474,7 +502,7 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 		var current_msg = media_queue.qitems[0];
 		print('Processing a message...', current_msg);
 		// when this check fails - it means that there are no items left in the queue
-		if (!current_msg){break}
+		if (!current_msg){print('invalid message', current_msg);break}
 
 		// if it's present in the cache - append it immediately
 		// otherwise - evaluate it
