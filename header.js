@@ -10,6 +10,7 @@
 // @connect      *
 // @connect      self
 // @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
+// @require      https://unpkg.com/dexie@latest/dist/dexie.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue

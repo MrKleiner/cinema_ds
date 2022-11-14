@@ -1,5 +1,18 @@
 
 
+
+//
+// Init database
+//
+
+const bandb = new Dexie('cinemads');
+bandb.version(1).stores({
+	bans: 'msgid'
+});
+console.log('Using Dexie v' + Dexie.semVer);
+
+
+
 window.mein_sleep = {}
 
 async function jsleep(amt=500, ref='a') {
@@ -22,6 +35,9 @@ window.print = function(){};
 const obj_url = (window.URL || window.webkitURL); 
 
 $this.global_cache = []
+
+$this.banned = []
+
 
 const media_types = {
 	'image': [

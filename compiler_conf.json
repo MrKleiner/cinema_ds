@@ -109,6 +109,11 @@
 				// "src": "https://cdn.jsdelivr.net/gh/MrKleiner/liz3_toybox_webtools@latest/sex_toys/shared/toolbox.min.js",
 				"src": "https://raw.githubusercontent.com/MrKleiner/liz3_toybox_webtools/main/sex_toys/shared/toolbox.js",
 				"name": "lizard"
+			},
+			{
+				"type": "url",
+				"src": "https://unpkg.com/dexie@latest/dist/dexie.js",
+				"name": "dexie"
 			}
 		],
 

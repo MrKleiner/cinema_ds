@@ -260,6 +260,14 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 	print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
 	// console.log('Content type', msg[media_type_key], media_type_key, msg.lizard_type)
 
+	// if it's banned - don't do anything
+	const this_channel = (new obj_url(window.location.href)).target.name
+	const msg_banned = await window.bootlegger.msgban.msg_is_banned(`${this_channel}/${msg.ds_id}`)
+	if (msg_banned){
+		return
+	}
+
+
 	// todo: proper pattern matching
 	
 	//
@@ -446,12 +454,14 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 		print('Got 50<= messages...', messages)
 		// write down the last message id
 		var last_msg_id = messages.at(-1).id
+		const tgt_chan = (new obj_url(window.location.href)).target.name
 		// go through each one of them and discard the ones which don't have any attachments and embeds
 		for (var msg of messages){
 			// count total amount of messages
 			total_msgs_scanned += 1
+			var msg_banned = await window.bootlegger.msgban.msg_is_banned(`${tgt_chan}/${msg.id}`)
 			// if both attachment and embeds arrays are empty - current message doesn't has any stuff
-			if (msg.attachments.length <= 0 && msg.embeds.length <= 0){continue}
+			if ((msg.attachments.length <= 0 && msg.embeds.length <= 0) || msg_banned == true){continue}
 
 			// identify every embed type
 			msg.attachments = msg.attachments.map(function sex(m){
@@ -511,6 +521,8 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 
 	var media_items = []
 
+	const this_channel = (new obj_url(window.location.href)).target.name
+
 	// keep doing shit until there are no items left in the queue
 	while (break_signal.alive){
 		// get the current message from the queue pool
@@ -521,7 +533,7 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 
 		// if it's present in the cache - append it immediately
 		// otherwise - evaluate it
-		if (current_msg.lizard_id in window.bootlegger.main.media_cache){
+		if (current_msg.lizard_id in window.bootlegger.main.media_cache && !window.bootlegger.core.banned.includes(`${this_channel}/${current_msg.ds_id}`)){
 			$('#cinema_ds_main_window #cinemads_media_pool').prepend(window.bootlegger.main.media_cache[current_msg.lizard_id])
 			media_queue.qitems.shift()
 			continue
@@ -546,3 +558,16 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 	return media_items
 }
 
+
+
+window.bootlegger.main.ban_msg = async function(evt, msg){
+	// src_msg_id
+	if (evt.altKey){
+		evt.preventDefault()
+		const tgt_chan = new obj_url(window.location.href)
+		const msg_path = `${tgt_chan.target.name}/${msg.getAttribute('src_msg_id')}`
+		window.bootlegger.msgban.ban_msg(msg_path)
+		window.bootlegger.core.banned.push(msg_path)
+		msg.remove()
+	}
+}

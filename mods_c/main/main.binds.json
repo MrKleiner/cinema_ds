@@ -16,5 +16,14 @@
 			"pass_element": true,
 			"pass_params": ""
 		}
+	],
+	"contextmenu": [
+		{
+			"selector": ".cinema_ds_img_entry, .cinema_ds_video_entry",
+			"function": "window.bootlegger.main.ban_msg",
+			"pass_event": true,
+			"pass_element": true,
+			"pass_params": ""
+		}
 	]
 }

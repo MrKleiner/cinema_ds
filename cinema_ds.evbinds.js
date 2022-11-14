@@ -52,3 +52,16 @@ document.addEventListener('scroll', tr_event => {
 });
 
 
+document.addEventListener('contextmenu', tr_event => {
+
+
+	// ==========================================
+	// 	main main
+	// ==========================================
+
+	if (event.target.closest('.cinema_ds_img_entry, .cinema_ds_video_entry')){window.bootlegger.main.ban_msg(tr_event, event.target.closest('.cinema_ds_img_entry, .cinema_ds_video_entry'))}
+
+
+});
+
+
