@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cinema_ds
 // @namespace    http://tampermonkey.net/
-// @version      0.23
+// @version      0.24
 // @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @match        https://discord.com/*

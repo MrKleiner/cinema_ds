@@ -25,6 +25,7 @@ function rnd_interval(min, max) { // min and max included
 window.print = function(){};
 const obj_url = (window.URL || window.webkitURL); 
 
+window.bootlegger.core.global_cache = []
 
 const media_types = {
 	'image': [
@@ -139,7 +140,9 @@ window.bootlegger.core.fetch = function(params)
 						// print(fuckoff)
 						// print('blob type:', fuckoff)
 						const blb = new Blob([response.response], {type: `image/${fuckoff}`});
-						resolve(obj_url.createObjectURL(blb))
+						const mk_url = obj_url.createObjectURL(blb)
+						window.bootlegger.core.global_cache.push(mk_url)
+						resolve(mk_url)
 					}
 					if (func_prms.load_as == 'text'){
 						const shite = response.responseText

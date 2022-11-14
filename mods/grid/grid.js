@@ -41,6 +41,7 @@ class gridmaker
 		this.pages = []
 
 		print('initialized gridder')
+		this.unlock_nav()
 
 	}
 
@@ -60,11 +61,11 @@ class gridmaker
 
 		// traverse through raw discord messages and find suitable ones
 		this.traversing = true;
-		console.log('Lock nav')
+		this.lock_nav()
 		const msgs = pulled_cache || await $all.main.msg_traverser(this.chan_id, this.worker_alive, msg_offs, 56)
 		this.qitems = msgs.media_units || msgs;
-		console.log('unlock nav')
-		console.log('Pages:', this.pages)
+		this.unlock_nav()
+		// console.log('Pages:', this.pages)
 		this.traversing = false;
 
 		// write down last message id globally
@@ -84,7 +85,13 @@ class gridmaker
 		// if limit is exceeded - delete first cached page from cache
 		print('Cache size:', cache_size)
 		if (cache_size > this.cache_size){
-			this.del_page_from_cache($this.current_page_index - this.cache_size)
+			// this.del_page_from_cache($this.current_page_index - this.cache_size)
+			for (let i = $this.current_page_index - this.cache_size ; i >= 0; i--) {
+				this.del_page_from_cache(i)
+			}
+			for (let kil of range($this.current_page_index + this.cache_size, this.pages.length)) {
+				this.del_page_from_cache(kil)
+			}
 		}
 		print('writing down last offset', msgs.last_id || this.pages[$this.current_page_index].offs)
 		// create new cache
@@ -231,6 +238,9 @@ class gridmaker
 		// kill previous work
 		this.abort()
 
+		// unlock nav
+		this.unlock_nav()
+
 		$this.current_page_index += 1
 		print('Next page index:', $this.current_page_index, 'pages:', this.pages, 'offset from', $this.current_page_index - 1, 'got offset:', this.pages[$this.current_page_index - 1].offs)
 		this.load_page(this.pages[$this.current_page_index - 1].offs)
@@ -240,6 +250,9 @@ class gridmaker
 		// kill previous work
 		this.abort()
 
+		// unlock nav
+		this.unlock_nav()
+
 		$this.current_page_index -= 1
 		print('Prev page index:', $this.current_page_index, 'pages:', this.pages, 'offset from', $this.current_page_index - 1)
 		this.load_page(this.pages[$this.current_page_index - 1].offs)
@@ -248,6 +261,7 @@ class gridmaker
 	kill(){
 		this.alive = false;
 		this.worker_alive.alive = false;
+		this.unlock_nav()
 
 		// todo: is this over the top ?
 		this.traversing = true;
@@ -272,6 +286,14 @@ class gridmaker
 			}
 		}
 		console.timeEnd('Wiped all pages cache')
+	}
+
+	lock_nav(){
+		$('#cinemads_pages').addClass('nav_locked');
+	}
+
+	unlock_nav(){
+		$('#cinemads_pages').removeClass('nav_locked');
 	}
 }
 
@@ -324,6 +346,9 @@ $this.maximize_video_autoplay = function(tgt){
 $this.chan_switch = function()
 {
 	$this.reset()
+	for (var fuck of $all.core.global_cache){
+		obj_url.revokeObjectURL(fuck)
+	}
 	if (document.body.getAttribute('cnds_shown') == 'yes'){
 		$this.grid.load_page(null)
 	}

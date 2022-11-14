@@ -172,7 +172,13 @@ body[cnds_shown='yes'] #cinema_ds_main_window::before
 	backdrop-filter: blur(9px);
 }
 
-
+.nav_locked
+{
+	color: #FF474F !important;
+	user-select: none !important;
+	pointer-events: none !important;
+	/*opacity: 0.95 !important;*/
+}
 
 
 

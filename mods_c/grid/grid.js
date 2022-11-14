@@ -45,6 +45,7 @@ class gridmaker
 		this.pages = []
 
 		print('initialized gridder')
+		this.unlock_nav()
 
 	}
 
@@ -64,11 +65,11 @@ class gridmaker
 
 		// traverse through raw discord messages and find suitable ones
 		this.traversing = true;
-		console.log('Lock nav')
+		this.lock_nav()
 		const msgs = pulled_cache || await window.bootlegger.main.msg_traverser(this.chan_id, this.worker_alive, msg_offs, 56)
 		this.qitems = msgs.media_units || msgs;
-		console.log('unlock nav')
-		console.log('Pages:', this.pages)
+		this.unlock_nav()
+		// console.log('Pages:', this.pages)
 		this.traversing = false;
 
 		// write down last message id globally
@@ -88,7 +89,13 @@ class gridmaker
 		// if limit is exceeded - delete first cached page from cache
 		print('Cache size:', cache_size)
 		if (cache_size > this.cache_size){
-			this.del_page_from_cache(window.bootlegger.grid.current_page_index - this.cache_size)
+			// this.del_page_from_cache(window.bootlegger.grid.current_page_index - this.cache_size)
+			for (let i = window.bootlegger.grid.current_page_index - this.cache_size ; i >= 0; i--) {
+				this.del_page_from_cache(i)
+			}
+			for (let kil of range(window.bootlegger.grid.current_page_index + this.cache_size, this.pages.length)) {
+				this.del_page_from_cache(kil)
+			}
 		}
 		print('writing down last offset', msgs.last_id || this.pages[window.bootlegger.grid.current_page_index].offs)
 		// create new cache
@@ -235,6 +242,9 @@ class gridmaker
 		// kill previous work
 		this.abort()
 
+		// unlock nav
+		this.unlock_nav()
+
 		window.bootlegger.grid.current_page_index += 1
 		print('Next page index:', window.bootlegger.grid.current_page_index, 'pages:', this.pages, 'offset from', window.bootlegger.grid.current_page_index - 1, 'got offset:', this.pages[window.bootlegger.grid.current_page_index - 1].offs)
 		this.load_page(this.pages[window.bootlegger.grid.current_page_index - 1].offs)
@@ -244,6 +254,9 @@ class gridmaker
 		// kill previous work
 		this.abort()
 
+		// unlock nav
+		this.unlock_nav()
+
 		window.bootlegger.grid.current_page_index -= 1
 		print('Prev page index:', window.bootlegger.grid.current_page_index, 'pages:', this.pages, 'offset from', window.bootlegger.grid.current_page_index - 1)
 		this.load_page(this.pages[window.bootlegger.grid.current_page_index - 1].offs)
@@ -252,6 +265,7 @@ class gridmaker
 	kill(){
 		this.alive = false;
 		this.worker_alive.alive = false;
+		this.unlock_nav()
 
 		// todo: is this over the top ?
 		this.traversing = true;
@@ -276,6 +290,14 @@ class gridmaker
 			}
 		}
 		console.timeEnd('Wiped all pages cache')
+	}
+
+	lock_nav(){
+		$('#cinemads_pages').addClass('nav_locked');
+	}
+
+	unlock_nav(){
+		$('#cinemads_pages').removeClass('nav_locked');
 	}
 }
 
@@ -328,6 +350,9 @@ window.bootlegger.grid.maximize_video_autoplay = function(tgt){
 window.bootlegger.grid.chan_switch = function()
 {
 	window.bootlegger.grid.reset()
+	for (var fuck of window.bootlegger.core.global_cache){
+		obj_url.revokeObjectURL(fuck)
+	}
 	if (document.body.getAttribute('cnds_shown') == 'yes'){
 		window.bootlegger.grid.grid.load_page(null)
 	}

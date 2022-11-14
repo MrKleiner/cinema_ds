@@ -142,7 +142,7 @@ window.bootlegger.main.media_processor.image = async function(msg, as_url=false,
 	// it'd be better to "clear" the URL manually,
 	// but for now it's always done automatically inside bootleg fetch when url_params are present
 	// actually, it'd be better if it was a parameter for the fetch function, like "wipe original URL params"
-	
+
 	const media_bytes = await window.bootlegger.core.fetch({
 		'url': blob_src,
 		'method': 'GET',
@@ -238,6 +238,7 @@ window.bootlegger.main.spawn_placeholder = function()
 	return placeholder
 }
 
+
 // window.bootlegger.main.media_cache[media_elem.attr('lizard_id')] = media_elem
 // process a given message
 // important todo: this is extremely fucking stupid.
@@ -247,7 +248,7 @@ window.bootlegger.main.spawn_placeholder = function()
 // please kill me
 window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 {
-	if (break_signal.alive != true){return}
+	// if (break_signal.alive != true){return}
 
 	// get the message type. Smartly
 	const as_emb = msg.lizard_type == 'embed';
@@ -257,7 +258,7 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 		msg[media_type_key] = mk_ext.target.suffix
 	}
 	print('Determined message type:', 'as_emb:', as_emb, 'media_type_key:', media_type_key);
-	console.log('Content type', msg[media_type_key], media_type_key, msg.lizard_type)
+	// console.log('Content type', msg[media_type_key], media_type_key, msg.lizard_type)
 
 	// todo: proper pattern matching
 	
@@ -289,6 +290,10 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 		// await jsleep(rnd_interval(0, 137))
 		// var elem = await window.bootlegger.main.media_processor.image(msg)
 		const elem = await window.bootlegger.main.media_processor.image(msg)
+		if (break_signal.alive != true){
+			obj_url.revokeObjectURL(elem.attr('src'))
+			return false
+		}
 		window.bootlegger.main.media_cache[msg.lizard_id] = elem
 		placeholder.replaceWith(elem)
 		return true
@@ -302,6 +307,10 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 		var placeholder = window.bootlegger.main.spawn_placeholder()
 		await jsleep(rnd_interval(0, 137))
 		const elem = await window.bootlegger.main.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
+		if (break_signal.alive != true){
+			obj_url.revokeObjectURL(elem.attr('src'))
+			return false
+		}
 		window.bootlegger.main.media_cache[msg.lizard_id] = elem
 		placeholder.replaceWith(elem)
 		return true
@@ -318,7 +327,13 @@ window.bootlegger.main.msg_processor = async function(msg, break_signal={})
 		// var elem = await window.bootlegger.main.media_processor.image(current_msg.thumbnail.url, true)
 		// var elem = await window.bootlegger.main.media_processor.image(current_msg)
 		var placeholder = window.bootlegger.main.spawn_placeholder()
-		placeholder.replaceWith(await window.bootlegger.main.media_processor.image(msg))
+		const elem = await window.bootlegger.main.media_processor.image(msg)
+		if (break_signal.alive != true){
+			obj_url.revokeObjectURL(elem.attr('src'))
+			return false
+		}
+		window.bootlegger.main.media_cache[msg.lizard_id] = elem
+		placeholder.replaceWith(elem)
 		return true
 	}
 
@@ -526,7 +541,7 @@ window.bootlegger.main.media_queue_processor = async function(media_queue, break
 		print('Current queue length', media_queue.qitems.length)
 	}
 
-	print('Done iterating over the media queue');
+	print('Done iterating over the media queue, cache storage length:', Object.keys(window.bootlegger.main.media_cache).length);
 
 	return media_items
 }
