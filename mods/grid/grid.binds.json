@@ -1,6 +1,13 @@
 {
 	"click": [
 		{
+			"selector": "a.article_link",
+			"function": "$this.open_article",
+			"pass_event": false,
+			"pass_element": false,
+			"pass_params": ""
+		},
+		{
 			"selector": "#cinema_ds_main_window #cinemads_pages #cinemads_page_next",
 			"function": "$this.load_next_page",
 			"pass_event": false,

@@ -3,6 +3,12 @@ if (!window.bootlegger){window.bootlegger = {}};
 
 if (!window.bootlegger.core){window.bootlegger.core={}};
 
+// rebinds
+// python-like stuff
+window.print = console.log;
+// window.print = function(){};
+const obj_url = (window.URL || window.webkitURL);
+
 
 
 //
@@ -32,11 +38,6 @@ function rnd_interval(min, max) { // min and max included
 	return Math.floor(Math.random() * (max - min + 1) + min)
 }
 
-// rebinds
-// python-like stuff
-// window.print = console.log;
-window.print = function(){};
-const obj_url = (window.URL || window.webkitURL); 
 
 window.bootlegger.core.global_cache = []
 
@@ -72,6 +73,10 @@ const media_types = {
 	]
 }
 
+// FUUUUUUUUUUUUUUUUUUUUUUUUU
+// important todo: Tampermonkey offers proper js Fetch...
+// Even though it's in beta stage - it's probably mostly fine
+const ok_codes = [...range(200, 300)]
 
 window.bootlegger.core.buffer_to_url = function(buf){
 	const blb = new Blob([buf], {});
@@ -81,7 +86,7 @@ window.bootlegger.core.buffer_to_url = function(buf){
 
 // use tampermonkey API to bypass the retarded CORS rubbish
 // load_as = blob|blob_url|text|json|buffer|buffer_raw
-// add_cookie = whether to add the corrent document cookie
+// add_cookie = whether to add the current document cookie or not
 // todo: this entire function makes little to no sense (probably):
 // the Tampermonkey fetch api is sexy enough to be used raw
 // window.bootlegger.core.fetch = function(furl, fmethod='get', load_as='text', fheaders={}, add_cookie=true)
@@ -139,9 +144,18 @@ window.bootlegger.core.fetch = function(params)
 				headers: mkheader,
 				nocache: true,
 				responseType: 'arraybuffer',
+				anonymous: true,
 
 				// todo: separate this function?
 				onload: function(response) {
+
+					// TODO
+					// FUCK: onerror only triggers on network error, like no internet....
+					// it doesn't fucking care about response codes...
+					if (!ok_codes.includes(response.status)){
+						resolve(false)
+						return
+					}
 
 					// const rsp_buffer = response.response
 
@@ -175,6 +189,10 @@ window.bootlegger.core.fetch = function(params)
 					if (func_prms.load_as == 'buffer_raw'){
 						resolve(response.response)
 					}
+				},
+
+				onerror: function() {
+					resolve(false)
 				}
 			}
 			// add cookie, if asked
@@ -204,6 +222,7 @@ window.bootlegger.core.fetch = function(params)
 				headers: mkheader,
 				nocache: true,
 				responseType: 'arraybuffer',
+				anonymous: true,
 
 				// send payload
 				binary: true,
@@ -211,6 +230,14 @@ window.bootlegger.core.fetch = function(params)
 
 				// todo: separate this function?
 				onload: function(response) {
+
+					// TODO
+					// FUCK: onerror only triggers on network error, like no internet....
+					// it doesn't fucking care about response codes...
+					if (!ok_codes.includes(response.status)){
+						resolve(false)
+						return
+					}
 
 					if (func_prms.load_as == 'blob'){
 						const blb = new Blob([response.response], {});
@@ -235,6 +262,10 @@ window.bootlegger.core.fetch = function(params)
 					if (func_prms.load_as == 'buffer_raw'){
 						resolve(response.response)
 					}
+				},
+
+				onerror: function(response) {
+					resolve(false)
 				}
 			}
 			// add cookie, if asked

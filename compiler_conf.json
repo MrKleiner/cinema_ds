@@ -112,6 +112,7 @@
 			},
 			{
 				"type": "url",
+				// "src": "https://unpkg.com/dexie@latest/dist/dexie.js",
 				"src": "https://unpkg.com/dexie@latest/dist/dexie.js",
 				"name": "dexie"
 			}

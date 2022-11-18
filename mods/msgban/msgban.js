@@ -13,3 +13,4 @@ $this.msg_is_banned = async function(msg_path=null){
 		return false
 	}
 }
+

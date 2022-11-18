@@ -5,6 +5,7 @@ document.addEventListener('click', tr_event => {
 	// 	grid grid
 	// ==========================================
 
+	if (event.target.closest('a.article_link')){window.bootlegger.grid.open_article()}
 	if (event.target.closest('#cinema_ds_main_window #cinemads_pages #cinemads_page_next')){window.bootlegger.grid.load_next_page()}
 	if (event.target.closest('#cinema_ds_main_window #cinemads_pages #cinemads_page_prev')){window.bootlegger.grid.load_prev_page()}
 	if (event.target.closest('#cinema_ds_main_window .cinema_ds_video_entry:not(.cinema_ds_video_entry[autoplay])')){window.bootlegger.grid.maximize_video(event.target.closest('#cinema_ds_main_window .cinema_ds_video_entry:not(.cinema_ds_video_entry[autoplay])'))}

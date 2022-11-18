@@ -346,9 +346,11 @@ $this.maximize_video_autoplay = function(tgt){
 $this.chan_switch = function()
 {
 	$this.reset()
-	for (var fuck of $all.core.global_cache){
-		obj_url.revokeObjectURL(fuck)
+	while ($all.core.global_cache.length >= 1){
+		obj_url.revokeObjectURL($all.core.global_cache[0])
+		$all.core.global_cache.shift()
 	}
+
 	if (document.body.getAttribute('cnds_shown') == 'yes'){
 		$this.grid.load_page(null)
 	}

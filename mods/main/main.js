@@ -74,6 +74,40 @@ $this.ensure_container_exists = function(silent=false)
 $this.media_processor = {}
 
 
+// this has to be a function to prevent an image/video going fullscreen
+$this.open_article = function(evt, elem)
+{
+	evt.preventDefault();
+	window.open(elem.href)
+}
+
+
+
+// todo: hiding shit from discord is kinda not needed
+// altough they might get suspicious when IP adress requests hendreds of images at once from discord.com
+// for now this also hides stuff from discord, which is pointless
+// The important thing it does is it matches referer header to given URL
+$this.mask_referer = function(link)
+{
+	const mask_referer = (
+		link.includes('media.discordapp.net')
+		||
+		link.includes('discord.com')
+		||
+		link.includes('cdn.discordapp.com')
+		||
+		link.includes('discordapp.com')
+		||
+		link.includes('discordapp.net')
+		||
+		link.includes('cdn.discordapp')
+	)
+
+	const referer = mask_referer ? 'https://www.reddit.com/' : (new obj_url(link)).origin
+
+	return referer
+}
+
 $this.media_processor.video = async function(msg, as_embed=false, looped_mute=false)
 {
 	print('Spawning a video...', msg, as_embed, looped_mute)
@@ -83,13 +117,34 @@ $this.media_processor.video = async function(msg, as_embed=false, looped_mute=fa
 		var media_url = msg.url
 	}
 
-	const media_bytes = await $all.core.fetch({
+	print('mask referer true for', media_url)
+	var media_bytes = await $all.core.fetch({
 		'url': media_url,
 		'method': 'GET',
-		'load_as': 'blob_url'
+		'load_as': 'blob_url',
+		'headers': {
+			'referer': $this.mask_referer(media_url),
+		}
 	})
-
 	print('Got video Blob URL', media_bytes)
+
+	// retry with fullsize url if error occured...
+	// todo: this is super dodgy...
+	// there has to be a better solution
+	if (media_bytes === false){
+		print('First request failed, retrying with fullsize link')
+		obj_url.revokeObjectURL(media_bytes)
+		var media_bytes = await $all.core.fetch({
+			'url': fullsize_link,
+			'method': 'GET',
+			'load_as': 'blob_url',
+			'headers': {
+				'referer': $this.mask_referer(blob_src),
+			}
+		})
+		print('retry result:', media_bytes)
+	}
+
 
 	// $('#cinema_ds_main_window #cinemads_media_pool').prepend(`
 	return $(`
@@ -102,6 +157,7 @@ $this.media_processor.video = async function(msg, as_embed=false, looped_mute=fa
 			src_msg_id="${msg.ds_id}"
 			download="${(new URL(media_url)).pathname.split('/').at(-1)}"
 		>
+			${msg.type == 'article' ? `<a target="_blank" href="${msg.original_url}" class="article_link">${btg.link_icon}</a>` : ''}
 			<video
 				${looped_mute ? 'loop muted autoplay' : ''}
 				src="${media_bytes}">
@@ -113,6 +169,8 @@ $this.media_processor.video = async function(msg, as_embed=false, looped_mute=fa
 
 $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 {
+	// important todo: tidy these functions and document all the actions
+	// also document the general logic behind each one of these functions
 	print('Spawning an image:', msg, as_url)
 
 	// try using thumbnail
@@ -138,15 +196,35 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 	// it'd be better to "clear" the URL manually,
 	// but for now it's always done automatically inside bootleg fetch when url_params are present
 	// actually, it'd be better if it was a parameter for the fetch function, like "wipe original URL params"
-
-	const media_bytes = await $all.core.fetch({
+	var media_bytes = await $all.core.fetch({
 		'url': blob_src,
 		'method': 'GET',
 		'load_as': 'blob_url',
-		'url_params': url_prms
+		'url_params': url_prms,
+		'headers': {
+			'referer': $this.mask_referer(blob_src),
+		}
 	})
-
 	print('Got image Blob URL:', media_bytes)
+
+	// retry with fullsize url if error occured...
+	// todo: this is super dodgy...
+	// there has to be a better solution
+	if (media_bytes === false){
+		print('First request failed, retrying with fullsize link')
+		obj_url.revokeObjectURL(media_bytes)
+		var media_bytes = await $all.core.fetch({
+			'url': fullsize_link,
+			'method': 'GET',
+			'load_as': 'blob_url',
+			'url_params': url_prms,
+			'headers': {
+				'referer': $this.mask_referer(blob_src),
+			}
+		})
+		print('retry result:', media_bytes)
+	}
+
 
 	// $('#cinema_ds_main_window #cinemads_media_pool').prepend(`
 	return $(`
@@ -160,6 +238,7 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 			src_msg_id="${msg.ds_id}"
 			full_as_thumb="${fullsize_link == blob_src}"
 		>
+			${msg.type == 'article' ? `<a target="_blank" href="${msg.original_url}" class="article_link">${btg.link_icon}</a>` : ''}
 			<img src="${media_bytes}">
 		</div>
 	`);
@@ -265,7 +344,7 @@ $this.msg_processor = async function(msg, break_signal={})
 
 
 	// todo: proper pattern matching
-	
+
 	//
 	// first, try matching non-controversial cases, like link prefixes
 	//
@@ -462,18 +541,21 @@ $this.msg_traverser = async function(chain_id=null, break_signal={}, msg_offs=nu
 			// identify every embed type
 			msg.attachments = msg.attachments.map(function sex(m){
 				m.lizard_type = 'attachment'
-				m.ds_id = msg.id
+				// m.original_url = m.url
+				// m.ds_id = msg.id
 				return m
 			})
 			msg.embeds = msg.embeds.map(function sex(m){
 				m.lizard_type = 'embed'
-				m.ds_id = msg.id
+				// m.original_url = m.url
+				// m.ds_id = msg.id
 				return m
 			})
 
 			// Concat embeds and attachments of the message and add all of these entries
 			// to the global media queue
-			for (var embed of msg.attachments.concat(msg.embeds)){
+			var entries_combined = msg.attachments.concat(msg.embeds)
+			for (var embed of entries_combined){
 				print('treating embed', embed)
 				// important todo: due to files not being displayed anyhow - pages appear empty
 				// same goes for youtube embeds, for now
@@ -484,6 +566,10 @@ $this.msg_traverser = async function(chain_id=null, break_signal={}, msg_offs=nu
 				// 		continue
 				// 	}
 				// }
+
+				// store some original data
+				embed.original_url = embed.url
+				embed.ds_id = msg.id
 
 				// simply skip youtube shit, for now
 				if (embed.provider){
