@@ -34,7 +34,7 @@
 // ==UserScript==
 // @name         cinema_ds
 // @namespace    https://github.com/MrKleiner/cinema_ds
-// @version      0.37
+// @version      0.38
 // @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @homepage     https://github.com/MrKleiner/cinema_ds
@@ -81,7 +81,7 @@
 // actually, this is not accessible from console
 // and therefore it shouldn't be too big of a security problem
 // just make sure that Tampermonkey keeps this entire thing sandboxed or whatever
-const ds_token = window.localStorage['token'].replaceAll('"', '');
+const ds_token = window.localStorage['token'].replaceAll('"', '').trim();
 // window.padlock = userToken.replaceAll('"', '');
 
 
@@ -7165,7 +7165,7 @@ if (!window.bootlegger){window.bootlegger = {}};
 
 if (!window.bootlegger.core){window.bootlegger.core={}};
 
-window.print = console.log;
+window.print = function(){};
 const obj_url = (window.URL || window.webkitURL);
 
 
@@ -7208,6 +7208,8 @@ const media_types = {
 		'image/webp',
 		'image/gif',
 		'image/x-ms-bmp',
+		'image/avif',
+		'avif',
 		'png',
 		'jpg',
 		'jpeg',
@@ -7227,6 +7229,87 @@ const media_types = {
 		'webm',
 		'avi'
 	]
+}
+
+const media_types_mimes = {
+	'mov': 'video/quicktime',
+	'aac': 'audio/aac',
+	'abw': 'application/x-abiword',
+	'arc': 'application/x-freearc',
+	'avif': 'image/avif',
+	'avi': 'video/x-msvideo',
+	'azw': 'application/vnd.amazon.ebook',
+	'bin': 'application/octet-stream',
+	'bmp': 'image/bmp',
+	'bz': 'application/x-bzip',
+	'bz2': 'application/x-bzip2',
+	'cda': 'application/x-cdf',
+	'csh': 'application/x-csh',
+	'css': 'text/css',
+	'csv': 'text/csv',
+	'doc': 'application/msword',
+	'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'eot': 'application/vnd.ms-fontobject',
+	'epub': 'application/epub+zip',
+	'gz': 'application/gzip',
+	'gif': 'image/gif',
+	'htm': 'text/html',
+	'html': 'text/html',
+	'ico': 'image/vnd.microsoft.icon',
+	'ics': 'text/calendar',
+	'jar': 'application/java-archive',
+	'jpeg': 'image/jpeg',
+	'jfif': 'image/jpeg',
+	'jpg': 'image/jpeg',
+	'js': 'text/javascript',
+	'json': 'application/json',
+	'jsonld': 'application/ld+json',
+	'mid': 'audio/midi audio/x-midi',
+	'midi': 'audio/midi audio/x-midi',
+	'mjs': 'text/javascript',
+	'mp3': 'audio/mpeg',
+	'mp4': 'video/mp4',
+	'mpeg': 'video/mpeg',
+	'mpkg': 'application/vnd.apple.installer+xml',
+	'odp': 'application/vnd.oasis.opendocument.presentation',
+	'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+	'odt': 'application/vnd.oasis.opendocument.text',
+	'oga': 'audio/ogg',
+	'ogv': 'video/ogg',
+	'ogx': 'application/ogg',
+	'opus': 'audio/opus',
+	'otf': 'font/otf',
+	'png': 'image/png',
+	'pdf': 'application/pdf',
+	'php': 'application/x-httpd-php',
+	'ppt': 'application/vnd.ms-powerpoint',
+	'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+	'rar': 'application/vnd.rar',
+	'rtf': 'application/rtf',
+	'sh': 'application/x-sh',
+	'svg': 'image/svg+xml',
+	'tar': 'application/x-tar',
+	'tif': 'image/tiff',
+	'tiff': 'image/tiff',
+	'ts': 'video/mp2t',
+	'ttf': 'font/ttf',
+	'txt': 'text/plain',
+	'vsd': 'application/vnd.visio',
+	'wav': 'audio/wav',
+	'weba': 'audio/webm',
+	'webm': 'video/webm',
+	'webp': 'image/webp',
+	'woff': 'font/woff',
+	'woff2': 'font/woff2',
+	'xhtml': 'application/xhtml+xml',
+	'xls': 'application/vnd.ms-excel',
+	'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	'xml': 'application/xml',
+	'xul': 'application/vnd.mozilla.xul+xml',
+	'zip': 'application/zip',
+	'3gp': 'video/3gpp; audio/3gpp',
+	'3g2': 'video/3gpp2; audio/3gpp2',
+	'7z': 'application/x-7z-compressed'
 }
 
 const ok_codes = [...range(200, 300)]
@@ -7289,9 +7372,8 @@ window.bootlegger.core.fetch = function(params)
 						resolve(blb)
 					}
 					if (func_prms.load_as == 'blob_url'){
-						print('current URK is', request_url)
-						const fuckoff = (new URL(request_url)).target.suffix
-						const blb = new Blob([response.response], {type: `image/${fuckoff}`});
+						const file_ext = (new URL(request_url)).target.suffix
+						const blb = new Blob([response.response], {type: (media_types_mimes[file_ext] ? media_types_mimes[file_ext] : '*/file_ext')});
 						const mk_url = obj_url.createObjectURL(blb)
 						window.bootlegger.core.global_cache.push(mk_url)
 						resolve(mk_url)
@@ -7353,8 +7435,11 @@ window.bootlegger.core.fetch = function(params)
 						resolve(blb)
 					}
 					if (func_prms.load_as == 'blob_url'){
-						const blb = new Blob([response.response], {});
-						resolve(obj_url.createObjectURL(blb))
+						const file_ext = (new URL(request_url)).target.suffix
+						const blb = new Blob([response.response], {type: (media_types_mimes[file_ext] ? media_types_mimes[file_ext] : '*/file_ext')});
+						const mk_url = obj_url.createObjectURL(blb)
+						window.bootlegger.core.global_cache.push(mk_url)
+						resolve(mk_url)
 					}
 					if (func_prms.load_as == 'text'){
 						const shite = response.responseText
@@ -7830,7 +7915,7 @@ window.bootlegger.main.media_processor.video = async function(msg, as_embed=fals
 	}
 
 	print('mask referer true for', media_url)
-	var media_bytes = await window.bootlegger.core.fetch({
+	const media_bytes = await window.bootlegger.core.fetch({
 		'url': media_url,
 		'method': 'GET',
 		'load_as': 'blob_url',
@@ -7839,21 +7924,6 @@ window.bootlegger.main.media_processor.video = async function(msg, as_embed=fals
 		}
 	})
 	print('Got video Blob URL', media_bytes)
-
-	if (media_bytes === false){
-		print('First request failed, retrying with fullsize link')
-		obj_url.revokeObjectURL(media_bytes)
-		var media_bytes = await window.bootlegger.core.fetch({
-			'url': fullsize_link,
-			'method': 'GET',
-			'load_as': 'blob_url',
-			'headers': {
-				'referer': window.bootlegger.main.mask_referer(blob_src),
-			}
-		})
-		print('retry result:', media_bytes)
-	}
-
 
 	return $(`
 		<div 

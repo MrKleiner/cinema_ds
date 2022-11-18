@@ -122,7 +122,7 @@ window.bootlegger.main.media_processor.video = async function(msg, as_embed=fals
 	}
 
 	print('mask referer true for', media_url)
-	var media_bytes = await window.bootlegger.core.fetch({
+	const media_bytes = await window.bootlegger.core.fetch({
 		'url': media_url,
 		'method': 'GET',
 		'load_as': 'blob_url',
@@ -131,24 +131,6 @@ window.bootlegger.main.media_processor.video = async function(msg, as_embed=fals
 		}
 	})
 	print('Got video Blob URL', media_bytes)
-
-	// retry with fullsize url if error occured...
-	// todo: this is super dodgy...
-	// there has to be a better solution
-	if (media_bytes === false){
-		print('First request failed, retrying with fullsize link')
-		obj_url.revokeObjectURL(media_bytes)
-		var media_bytes = await window.bootlegger.core.fetch({
-			'url': fullsize_link,
-			'method': 'GET',
-			'load_as': 'blob_url',
-			'headers': {
-				'referer': window.bootlegger.main.mask_referer(blob_src),
-			}
-		})
-		print('retry result:', media_bytes)
-	}
-
 
 	// $('#cinema_ds_main_window #cinemads_media_pool').prepend(`
 	return $(`

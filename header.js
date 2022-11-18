@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cinema_ds
 // @namespace    https://github.com/MrKleiner/cinema_ds
-// @version      0.37
+// @version      0.38
 // @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @homepage     https://github.com/MrKleiner/cinema_ds
@@ -48,5 +48,5 @@
 // actually, this is not accessible from console
 // and therefore it shouldn't be too big of a security problem
 // just make sure that Tampermonkey keeps this entire thing sandboxed or whatever
-const ds_token = window.localStorage['token'].replaceAll('"', '');
+const ds_token = window.localStorage['token'].replaceAll('"', '').trim();
 // window.padlock = userToken.replaceAll('"', '');
