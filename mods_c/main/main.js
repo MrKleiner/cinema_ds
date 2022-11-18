@@ -295,7 +295,9 @@ window.bootlegger.main.media_processor.imgur_album = async function(msg, break_s
 window.bootlegger.main.spawn_placeholder = function()
 {
 	const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
-	$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
+	// todo: prepend kind of makes more sense
+	// $('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
+	$('#cinema_ds_main_window #cinemads_media_pool').append(placeholder)
 	return placeholder
 }
 
@@ -541,6 +543,10 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 			// Concat embeds and attachments of the message and add all of these entries
 			// to the global media queue
 			var entries_combined = msg.attachments.concat(msg.embeds)
+			// todo: the original element order from discord of the attachments and embes array
+			// doesn't match the grid/list order
+			// remoev this statement to be OG
+			entries_combined.reverse()
 			for (var embed of entries_combined){
 				print('treating embed', embed)
 				// important todo: due to files not being displayed anyhow - pages appear empty
@@ -566,7 +572,11 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 
 				// assign a unique id to this element
 				embed.lizard_id = lizard.rndwave(32)
+				// todo: leave push to be OG ?
 				found_msgs.push(embed)
+				// prepending to the beginning of the array matches the way it's laid out in discord
+				// found_msgs.unshift(embed)
+
 				print('found embed', embed)
 			}
 		}

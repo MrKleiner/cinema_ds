@@ -8071,7 +8071,7 @@ window.bootlegger.main.media_processor.imgur_album = async function(msg, break_s
 window.bootlegger.main.spawn_placeholder = function()
 {
 	const placeholder = $(`<img class="cinema_ds_img_entry placeholder">`)
-	$('#cinema_ds_main_window #cinemads_media_pool').prepend(placeholder)
+	$('#cinema_ds_main_window #cinemads_media_pool').append(placeholder)
 	return placeholder
 }
 
@@ -8254,6 +8254,7 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 			})
 
 			var entries_combined = msg.attachments.concat(msg.embeds)
+			entries_combined.reverse()
 			for (var embed of entries_combined){
 				print('treating embed', embed)
 
@@ -8269,6 +8270,7 @@ window.bootlegger.main.msg_traverser = async function(chain_id=null, break_signa
 
 				embed.lizard_id = lizard.rndwave(32)
 				found_msgs.push(embed)
+
 				print('found embed', embed)
 			}
 		}

@@ -387,6 +387,7 @@ localStorage.getItem = function(item)
 }
 
 
-// when url changes - flush stuff and load new
+// URL change event
+// this function is re-assigned according to current view type
 window.addEventListener('urlchange', (info) => $all.main.url_switch_protocol());
 
