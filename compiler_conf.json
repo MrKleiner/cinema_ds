@@ -112,10 +112,15 @@
 			},
 			{
 				"type": "url",
-				// "src": "https://unpkg.com/dexie@latest/dist/dexie.js",
-				"src": "https://unpkg.com/dexie@latest/dist/dexie.js",
-				"name": "dexie"
+				"src": "https://cdn.jsdelivr.net/gh/Stuk/jszip@v3.4.0/dist/jszip.js",
+				"name": "jszip"
 			}
+			// {
+			// 	"type": "url",
+			// 	// "src": "https://unpkg.com/dexie@latest/dist/dexie.js",
+			// 	"src": "https://unpkg.com/dexie@latest/dist/dexie.js",
+			// 	"name": "dexie"
+			// }
 		],
 
 

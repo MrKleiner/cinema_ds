@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cinema_ds
 // @namespace    https://github.com/MrKleiner/cinema_ds
-// @version      0.38
+// @version      0.39
 // @description  A Discord addon which transforms server/dm channels into image strips 
 // @author       Barney
 // @homepage     https://github.com/MrKleiner/cinema_ds
@@ -17,7 +17,7 @@
 // @connect      *
 // @connect      self
 //
-// @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js
+// @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.js
 // @require      https://unpkg.com/dexie@latest/dist/dexie.js
 //
 // @match        https://discord.com/*

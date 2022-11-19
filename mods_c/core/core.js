@@ -6,15 +6,24 @@ if (!window.bootlegger.core){window.bootlegger.core={}};
 // rebinds
 // python-like stuff
 // window.print = console.log;
+// important note: this plugin shits A LOT of logs, which take A LOT of RAM
+// this is why there's a switch to mute them
 window.print = function(){};
 const obj_url = (window.URL || window.webkitURL);
 
 
+// important todo:
+// discord message fetching methods:
+// before
+// after
+// around
+// {NONE} = load latest
+
+
 
 //
-// Init database
+// Init banned messages database
 //
-
 const bandb = new Dexie('cinemads');
 bandb.version(1).stores({
 	bans: 'msgid'
@@ -39,11 +48,21 @@ function rnd_interval(min, max) { // min and max included
 }
 
 
+// todo: temp solution for flushing cache globally
+// this variable simply stores every single blob url created by the bootleg fetch
 window.bootlegger.core.global_cache = []
 
+
+// It'd be extremely stupid to call the database when spawning cached items
+// as this would take an insanely large amount of time
+// The only way to avoid this is caching message IDs banned during this session
+// inside an array which could be accessed quickly
 window.bootlegger.core.banned = []
 
 
+// Basically, these types have a guaranteed support in the system.
+// Everything else is skipped due to the fact that it's impossible to properly evaluate
+// types with no guaranteed support
 const media_types = {
 	'image': [
 		'image',
@@ -76,6 +95,7 @@ const media_types = {
 }
 
 // mime types of certain file formats
+// this is ONE OF the solutions for blobs having invalid file name when saved with RMB
 const media_types_mimes = {
 	'mov': 'video/quicktime',
 	'aac': 'audio/aac',
@@ -160,23 +180,29 @@ const media_types_mimes = {
 // FUUUUUUUUUUUUUUUUUUUUUUUUU
 // important todo: Tampermonkey offers proper js Fetch...
 // Even though it's in beta stage - it's probably mostly fine
+// this variable stores the entire range of the OK response codes
 const ok_codes = [...range(200, 300)]
 
+
+// converts any buffer to object URL
 window.bootlegger.core.buffer_to_url = function(buf){
 	const blb = new Blob([buf], {});
 	return obj_url.createObjectURL(blb)
 }
 
 
-// use tampermonkey API to bypass the retarded CORS rubbish
-// load_as = blob|blob_url|text|json|buffer|buffer_raw
-// add_cookie = whether to add the current document cookie or not
-// todo: this entire function makes little to no sense (probably):
-// the Tampermonkey fetch api is sexy enough to be used raw
-// window.bootlegger.core.fetch = function(furl, fmethod='get', load_as='text', fheaders={}, add_cookie=true)
-// basically, this is a multitask function
-// there should be more specific functions
-// fun fact: this function doesn't do what it was supposed to do
+// ================================================================
+// Use tampermonkey API to bypass the retarded CORS rubbish
+// ================================================================
+
+// load_as 		: blob|blob_url|text|json|buffer|buffer_raw
+// add_cookie 	: whether to add the current document cookie or not
+// url 			: the request URL
+// headers 		: additional headers for the request
+// url_params 	: a key:value dict which is added as URL params to the final url. Wipes any existing params in the input URL, if used
+// bin 			: data payload when using the POST method
+
+// fun fact: this function doesn't do what it was supposed to do (historically, this doesnt matter now)
 window.bootlegger.core.fetch = function(params)
 {
 	print('input params:', params)
@@ -186,7 +212,7 @@ window.bootlegger.core.fetch = function(params)
 		'method': params.method || 'GET',
 		'load_as': params.load_as || 'text',
 		'headers': params.headers || {},
-		'add_cookie': params.add_cookie || true,
+		'add_cookie': (params.add_cookie === false) ? false : true,
 		'url_params': params.url_params || {},
 		'bin': params.bin || ''
 	}
@@ -205,13 +231,14 @@ window.bootlegger.core.fetch = function(params)
 		+ 
 		((Object.keys(func_prms.url_params).length > 0) ? `?${mk_url_params.toString()}` : '')
 
-	// headers
+	// Default headers
 	const default_headers = {
 		'Accept': '*/*',
 		// it's again unclear whether it puts any default headers or not
 		'User-Agent': window.navigator.userAgent
 	}
 	// merge default headers and additional ones
+	// this action overwrites the default ones in case of any conflicts
 	const mkheader = Object.assign({}, default_headers, func_prms.headers)
 
 
@@ -250,7 +277,7 @@ window.bootlegger.core.fetch = function(params)
 					if (func_prms.load_as == 'blob_url'){
 						// get file extension of the target
 						const file_ext = (new URL(request_url)).target.suffix
-						// create a blob of certain type
+						// create a blob of certain type (use mime types dict to match the file format)
 						const blb = new Blob([response.response], {type: (media_types_mimes[file_ext] ? media_types_mimes[file_ext] : '*/file_ext')});
 						// create object url of a specified blob
 						const mk_url = obj_url.createObjectURL(blb)
@@ -260,7 +287,6 @@ window.bootlegger.core.fetch = function(params)
 					}
 					if (func_prms.load_as == 'text'){
 						const shite = response.responseText
-						// print('tampermonkey', shite)
 						resolve(shite)
 					}
 					if (func_prms.load_as == 'json'){
@@ -279,13 +305,15 @@ window.bootlegger.core.fetch = function(params)
 					resolve(false)
 				}
 			}
+
 			// add cookie, if asked
 			// (default to true)
 			if (func_prms.add_cookie){
+				// cookie is added separately, by the API itself and not manual injection into hedaers dict
 				rqprms['cookie'] = document.cookie
 			}
 
-			// execute request
+			// execute the request
 			GM_xmlhttpRequest(rqprms)
 		});
 	}

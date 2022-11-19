@@ -34,6 +34,8 @@ $this.open_pool_via_keybind = function(evt)
 	}
 }
 
+
+// check the equality of two buffers
 $this.buffer_equal = function(buf1, buf2)
 {
 	if (buf1.byteLength != buf2.byteLength) return false;
@@ -87,6 +89,7 @@ $this.open_article = function(evt, elem)
 // altough they might get suspicious when IP adress requests hendreds of images at once from discord.com
 // for now this also hides stuff from discord, which is pointless
 // The important thing it does is it matches referer header to given URL
+// Because for whatever reason, some websites refuse servicing outsider referers...
 $this.mask_referer = function(link)
 {
 	const mask_referer = (
@@ -105,7 +108,7 @@ $this.mask_referer = function(link)
 
 	const referer = mask_referer ? 'https://www.reddit.com/' : (new obj_url(link)).origin
 
-	return referer
+	return {'ref': referer, 'cookie': false}
 }
 
 $this.media_processor.video = async function(msg, as_embed=false, looped_mute=false)
@@ -117,14 +120,19 @@ $this.media_processor.video = async function(msg, as_embed=false, looped_mute=fa
 		var media_url = msg.url
 	}
 
+	// some websites refuse to give away content if referer is not the website itself
+	// in this case, said websites also shouldn't get discord's cookie
+	const anon = $this.mask_referer(media_url)
+
 	print('mask referer true for', media_url)
 	const media_bytes = await $all.core.fetch({
 		'url': media_url,
 		'method': 'GET',
 		'load_as': 'blob_url',
 		'headers': {
-			'referer': $this.mask_referer(media_url),
-		}
+			'referer': anon.ref,
+		},
+		'add_cookie': anon.cookie
 	})
 	print('Got video Blob URL', media_bytes)
 
@@ -159,9 +167,10 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 	var as_thumb = null
 	var url_prms = {}
 	if (!!msg.thumbnail && use_thumb == true){
-		if (msg.thumbnail.width > 400){
-			const factor = msg.thumbnail.width / 400
-			url_prms['width'] = 400
+		const clampto = 300
+		if (msg.thumbnail.width > clampto){
+			const factor = msg.thumbnail.width / clampto
+			url_prms['width'] = clampto
 			url_prms['height'] = Math.round(msg.thumbnail.height / factor)
 			as_thumb = msg.thumbnail.proxy_url
 		}
@@ -169,6 +178,10 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 
 	const blob_src = as_url ? msg : as_thumb || msg.url
 	const fullsize_link = as_url ? msg : msg.url
+
+	// some websites refuse to give away content if referer is not the website itself
+	// in this case, said websites also shouldn't get discord's cookie
+	const anon = $this.mask_referer(blob_src)
 
 	// the reason everything's using blobs is that it's the only reliable way to load the image
 	// sometimes some websites, for whatever reason, may refuse to accept requests from src=""
@@ -184,8 +197,9 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 		'load_as': 'blob_url',
 		'url_params': url_prms,
 		'headers': {
-			'referer': $this.mask_referer(blob_src),
-		}
+			'referer': anon.ref,
+		},
+		'add_cookie': anon.cookie
 	})
 	print('Got image Blob URL:', media_bytes)
 
@@ -228,28 +242,69 @@ $this.media_processor.image = async function(msg, as_url=false, use_thumb=true)
 
 $this.media_processor.imgur_album = async function(msg, break_signal={}, imgur_link)
 {
+	// For whatever reason, imgur is VERY concerned about hiding image URLs of an image ablum from non-API requests...
 
+	// By default, the /a/ endpoint returns empty HTML page which is then populated
+	// by js scripts with image IDs burned into the scripts themselve...
+
+	// BUT, it appears that collections can be viewed in different layouts
+	// and /layout/blog returns an html page WITH image IDs, which are STILL burned into the scripts,
+	// except not as encrypted as in default /a/
+
+	// Therefore, getting actual links from this is quite hard and requires a complex regex,
+	// which returns pairs of image ID and image extension,
+	// then, this whole deal has to be collapsed into an actual URL:
+	// https://i.imgur.com/ + image_id + image_extension
+
+	// The URL target is a collection ID:
+	// https://imgur.com/a/TARGET_ALBUM_ID
 	const album_id = new obj_url(imgur_link)
 
+	// Here referer is masked, because the raw HTML page is loaded,
+	// which is theoretically not supposed to be loaded from outside the imgur.com domain.
+	// This also means no discord cookie
 	const raw_list = await $all.core.fetch({
 		'url': `https://imgur.com/a/${album_id.target.name}/layout/blog`,
 		'method': 'GET',
-		'load_as': 'text'
+		'load_as': 'text',
+		'headers': {
+			'referer': 'https://imgur.com'
+		},
+		'add_cookie': false
 	})
 
+	// the regexp used to pull image IDs from the HTML page
+	// todo: is it possible to evaulate HTML and pull IDs that way?
 	const regexp = /\{\"hash\":\"([\w\d]*)\"\,\"title\".*?\"ext\"\:\"(\.jpg|.png|.gif|.gifv|.mp4)\".*?\}/g;
+	// execute the regexp and store raw pairs of ID : Extension
+	// (thi actually returns groups of 3, where 0 is some rubbish)
 	const url_pairs = raw_list.matchAll(regexp);
-	var imgs = []
+
+
+	// It appears that the provided HTML page has A LOT of duplicate imgs with UNIQUE IDs...
+	// This is absolutely retarded...
+	// For now the hashing of the files is avoided as this may slow down the evaluation by A LOT
+
+	// Supposedly, a single album usually has around 10 images
+	// and it should be fine to simply compare their buffers stored in RAM
 	var fuck_imgur = []
+	
+	// Go through every regexp matched pair.
 	for (let match of url_pairs) {
 		if (break_signal.alive != true){return}
 
+		// compose the file name
 		var imglink = match[1] + match[2]
+		// create a placeholder
 		var placeholder = $this.spawn_placeholder()
+		// Referer is not masked here, because imgur image cdn doesn't has any known cases
+		// of refusing service to outsider referers,
+		// but it still shouldn't get discord's cookie
 		var imgbytes = await $all.core.fetch({
 			'url': `https://i.imgur.com/${imglink}`,
 			'method': 'GET',
-			'load_as': 'buffer_raw'
+			'load_as': 'buffer_raw',
+			'add_cookie': false
 		})
 		if (break_signal.alive != true){return}
 
@@ -644,4 +699,36 @@ $this.ban_msg = async function(evt, msg){
 		$all.core.banned.push(msg_path)
 		msg.remove()
 	}
+}
+
+
+
+
+
+
+// TEST
+async function save_banned_db(){
+
+	console.time('db backup')
+	var payload = []
+	console.log('saving shit')
+	await bandb.bans.each(msg => payload.push(msg.msgid));
+
+	// Filesaver dies from text Utf8Arrays, use Blobs instead
+	const blb = new Blob([lizard.strToUTF8Arr(payload.join('\n'))], {type: 'text/plain'});
+
+	var zip = new JSZip();
+	zip.file('banned.ban', blb);
+	console.log('generating zip')
+	const zipped_file = await zip.generateAsync({
+		type: 'blob',
+		compression: 'DEFLATE',
+		compressionOptions: {
+			level: 9
+		}
+	})
+	console.log('generated zip')
+	// important todo: use Tampermonkey download and not filesaver ?
+	await saveAs(zipped_file, 'banned_msgs.ban')
+	console.timeEnd('db backup')
 }
