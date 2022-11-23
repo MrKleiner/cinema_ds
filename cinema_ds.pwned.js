@@ -32,7 +32,7 @@
 
 
 // ==UserScript==
-// @name         cinema_ds
+// @name         Cinema Discord
 // @namespace    https://github.com/MrKleiner/cinema_ds
 // @version      0.39
 // @description  A Discord addon which transforms server/dm channels into image strips 
@@ -13459,6 +13459,7 @@ const media_types_mimes = {
 	'opus': 'audio/opus',
 	'otf': 'font/otf',
 	'png': 'image/png',
+	'apng': 'image/apng',
 	'pdf': 'application/pdf',
 	'php': 'application/x-httpd-php',
 	'ppt': 'application/vnd.ms-powerpoint',

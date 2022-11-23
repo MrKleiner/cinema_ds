@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         cinema_ds
+// @name         Cinema Discord
 // @namespace    https://github.com/MrKleiner/cinema_ds
 // @version      0.39
 // @description  A Discord addon which transforms server/dm channels into image strips 

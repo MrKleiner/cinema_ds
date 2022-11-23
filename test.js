@@ -3,7 +3,7 @@
 // Discord unbinds local storage methods to make the token inaccessible
 // ======================================================================
 
-// this function fixes this with black magic
+// this function reverts these actions
 
 (function () {
 	'use strict';

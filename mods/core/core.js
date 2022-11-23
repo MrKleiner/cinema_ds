@@ -141,6 +141,7 @@ const media_types_mimes = {
 	'opus': 'audio/opus',
 	'otf': 'font/otf',
 	'png': 'image/png',
+	'apng': 'image/apng',
 	'pdf': 'application/pdf',
 	'php': 'application/x-httpd-php',
 	'ppt': 'application/vnd.ms-powerpoint',
