@@ -318,7 +318,8 @@ window.bootlegger.grid.load_prev_page = function(){
 	window.bootlegger.grid.grid.prev_page()
 }
 
-window.bootlegger.grid.maximize_image = async function(tgt){
+window.bootlegger.grid.maximize_image = async function(evt, tgt){
+	if (evt.altKey){return}
 	$('body #cinema_ds_fullscreen').remove()
 	// $('body').append(`<img id="cinema_ds_fullscreen" src="${tgt.getAttribute('fullsize')}">`)
 	$('body').append(`<div id="cinema_ds_fullscreen" src=""></div>`)

@@ -24,7 +24,7 @@
 		{
 			"selector": "#cinema_ds_main_window .cinema_ds_video_entry:not(.cinema_ds_video_entry[autoplay])",
 			"function": "$this.maximize_video",
-			"pass_event": false,
+			"pass_event": true,
 			"pass_element": true,
 			"pass_params": ""
 		},
@@ -38,7 +38,7 @@
 		{
 			"selector": "#cinema_ds_main_window .cinema_ds_img_entry",
 			"function": "$this.maximize_image",
-			"pass_event": false,
+			"pass_event": true,
 			"pass_element": true,
 			"pass_params": ""
 		},

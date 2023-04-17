@@ -21,7 +21,7 @@ $this.toggle_main_window_vis = function(state='toggle')
 }
 
 
-// open the image pool trough a keybind
+// open the image pool through a keybind
 $this.open_pool_via_keybind = function(evt)
 {
 	if (evt.altKey && evt.keyCode == 65){
@@ -39,8 +39,8 @@ $this.open_pool_via_keybind = function(evt)
 $this.buffer_equal = function(buf1, buf2)
 {
 	if (buf1.byteLength != buf2.byteLength) return false;
-	var dv1 = new Int8Array(buf1);
-	var dv2 = new Int8Array(buf2);
+	const dv1 = new Int8Array(buf1);
+	const dv2 = new Int8Array(buf2);
 	for (var i = 0 ; i != buf1.byteLength ; i++){
 		if (dv1[i] != dv2[i]) return false;
 	}
@@ -245,7 +245,7 @@ $this.media_processor.imgur_album = async function(msg, break_signal={}, imgur_l
 	// For whatever reason, imgur is VERY concerned about hiding image URLs of an image ablum from non-API requests...
 
 	// By default, the /a/ endpoint returns empty HTML page which is then populated
-	// by js scripts with image IDs burned into the scripts themselve...
+	// by js scripts with image IDs burned into the scripts themselves...
 
 	// BUT, it appears that collections can be viewed in different layouts
 	// and /layout/blog returns an html page WITH image IDs, which are STILL burned into the scripts,
@@ -277,7 +277,7 @@ $this.media_processor.imgur_album = async function(msg, break_signal={}, imgur_l
 	// todo: is it possible to evaulate HTML and pull IDs that way?
 	const regexp = /\{\"hash\":\"([\w\d]*)\"\,\"title\".*?\"ext\"\:\"(\.jpg|.png|.gif|.gifv|.mp4)\".*?\}/g;
 	// execute the regexp and store raw pairs of ID : Extension
-	// (thi actually returns groups of 3, where 0 is some rubbish)
+	// (this actually returns groups of 3, where 0 is some rubbish)
 	const url_pairs = raw_list.matchAll(regexp);
 
 
@@ -287,16 +287,17 @@ $this.media_processor.imgur_album = async function(msg, break_signal={}, imgur_l
 
 	// Supposedly, a single album usually has around 10 images
 	// and it should be fine to simply compare their buffers stored in RAM
-	var fuck_imgur = []
+	// important todo: window.crypto offers fast buffer comparison
+	const fuck_imgur = [];
 	
 	// Go through every regexp matched pair.
 	for (let match of url_pairs) {
 		if (break_signal.alive != true){return}
 
 		// compose the file name
-		var imglink = match[1] + match[2]
+		const imglink = match[1] + match[2];
 		// create a placeholder
-		var placeholder = $this.spawn_placeholder()
+		const placeholder = $this.spawn_placeholder();
 		// Referer is not masked here, because imgur image cdn doesn't has any known cases
 		// of refusing service to outsider referers,
 		// but it still shouldn't get discord's cookie
@@ -408,7 +409,7 @@ $this.msg_processor = async function(msg, break_signal={})
 		msg.thumbnail['height'] = msg.height
 		msg.thumbnail['proxy_url'] = msg.proxy_url
 		msg.thumbnail['url'] = msg.url
-		var placeholder = $this.spawn_placeholder()
+		const placeholder = $this.spawn_placeholder()
 		// await jsleep(rnd_interval(0, 137))
 		// var elem = await $this.media_processor.image(msg)
 		const elem = await $this.media_processor.image(msg)
@@ -426,7 +427,7 @@ $this.msg_processor = async function(msg, break_signal={})
 	//
 	if (media_types.video.includes(msg[media_type_key])){
 		// var elem = await $this.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
-		var placeholder = $this.spawn_placeholder()
+		const placeholder = $this.spawn_placeholder()
 		await jsleep(rnd_interval(0, 137))
 		const elem = await $this.media_processor.video(msg, as_emb, msg[media_type_key] == 'gifv')
 		if (break_signal.alive != true){
@@ -448,7 +449,7 @@ $this.msg_processor = async function(msg, break_signal={})
 		msg.url = msg.thumbnail.url
 		// var elem = await $this.media_processor.image(current_msg.thumbnail.url, true)
 		// var elem = await $this.media_processor.image(current_msg)
-		var placeholder = $this.spawn_placeholder()
+		const placeholder = $this.spawn_placeholder()
 		const elem = await $this.media_processor.image(msg)
 		if (break_signal.alive != true){
 			obj_url.revokeObjectURL(elem.attr('src'))
@@ -478,11 +479,11 @@ $this.get_messages = async function(chan_id, before=null, after=null)
 	// use fetch, because it'd be weird to force-use the Tampermonkey OP API
 	// even for the links which are within the discord domain
 	return new Promise(function(resolve, reject){
-		var input_prms = {
-			'limit': 50
+		const input_prms = {
+			'limit': 50,
 		}
 		if (before || after){
-			input_prms[before ? 'before' : 'after'] = before || after
+			input_prms[before ? 'before' : 'after'] = before || after;
 		}
 		const urlParams = new URLSearchParams(input_prms);
 		const super_props = {
@@ -491,6 +492,7 @@ $this.get_messages = async function(chan_id, before=null, after=null)
 			'device': '',
 			'system_locale': 'en-US',
 			'browser_user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+			// important todo: get browser version
 			'browser_version': '107.0.0.0',
 			'os_version': '10',
 			'referrer':'https://discord.com/',
@@ -499,8 +501,9 @@ $this.get_messages = async function(chan_id, before=null, after=null)
 			'referring_domain_current': '',
 			'release_channel': 'stable',
 			'client_build_number': $all.core.app_ver || null,
-			'client_event_source': null
+			'client_event_source': null,
 		}
+		const response = await
 		fetch(`https://discord.com/api/v9/channels/${chan_id}/messages?${urlParams.toString()}`, {
 			'headers': {
 				'accept': '*/*',
@@ -510,16 +513,16 @@ $this.get_messages = async function(chan_id, before=null, after=null)
 				'cookie': document.cookie,
 				'x-super-properties': lizard.btoa(JSON.stringify(super_props)),
 				'x-debug-options': 'bugReporterEnabled',
-				'x-discord-locale': document.documentElement.lang
+				'x-discord-locale': document.documentElement.lang,
 			},
 			'method': 'GET',
 			'mode': 'cors',
-			'credentials': 'omit'
+			// important todo: the server can return a new cookie to set. Ignore it or not ?
+			'credentials': 'omit',
 		})
-		.then(async function(response) {
-			const msgs = await response.json()
-			resolve(msgs)
-		});
+		const rdata = await response.json();
+		resolve(msgs)
+		return
 	});
 }
 
@@ -570,10 +573,10 @@ $this.msg_traverser = async function(chain_id=null, break_signal={}, msg_offs=nu
 		var last_msg_id = messages.at(-1).id
 		const tgt_chan = (new obj_url(window.location.href)).target.name
 		// go through each one of them and discard the ones which don't have any attachments and embeds
-		for (var msg of messages){
+		for (let msg of messages){
 			// count total amount of messages
 			total_msgs_scanned += 1
-			var msg_banned = await $all.msgban.msg_is_banned(`${tgt_chan}/${msg.id}`)
+			const msg_banned = await $all.msgban.msg_is_banned(`${tgt_chan}/${msg.id}`)
 			// if both attachment and embeds arrays are empty - current message doesn't has any stuff
 			if ((msg.attachments.length <= 0 && msg.embeds.length <= 0) || msg_banned == true){continue}
 
@@ -598,7 +601,7 @@ $this.msg_traverser = async function(chain_id=null, break_signal={}, msg_offs=nu
 			// doesn't match the grid/list order
 			// remoev this statement to be OG
 			entries_combined.reverse()
-			for (var embed of entries_combined){
+			for (let embed of entries_combined){
 				print('treating embed', embed)
 				// important todo: due to files not being displayed anyhow - pages appear empty
 				// same goes for youtube embeds, for now
@@ -703,6 +706,55 @@ $this.ban_msg = async function(evt, msg){
 
 
 
+$this.temp_send_to_server = function(evt, elem){
+
+	console.log('saving to server')
+	if (evt.altKey){
+		console.log('alt key detected')
+		evt.preventDefault()
+	}else{
+		return
+	}
+	console.log('saving...')
+
+	// a little trick to convert any data type to array buffer
+	// the only reason this is done is because it's unclear whether the Tampermonkey
+	// API accepts blobs or not
+	const toblob = new Blob([elem.getAttribute('fullsize') || elem.getAttribute('blob_src')], {});
+	console.log('got fullsize:', elem.getAttribute('fullsize') || elem.getAttribute('blob_src'))
+	// const payload_buffer = await toblob.arrayBuffer()
+
+	// const sex = await fetch('/172.0.0.1:8000/htbin/srv.py', {
+	// 	'method': 'POST',
+	// 	'body': toblob,
+	// 	'mode': 'cors',
+	// 	'credentials': 'omit'
+	// })
+
+	// console.log('WHYYYYYY', await sex.text())
+
+	// request params
+	const rqprms = {
+		method: 'POST',
+		url: 'http://192.168.0.6:8027/htbin/srv.py',
+		nocache: true,
+		// responseType: 'arraybuffer',
+		anonymous: true,
+
+		// send payload
+		binary: true,
+		data: elem.getAttribute('fullsize') || elem.getAttribute('blob_src'),
+
+		// todo: separate this function?
+		onload: function(response) {
+			print('Server solution response', response.responseText)
+		}
+	}
+
+	// execute request
+	GM_xmlhttpRequest(rqprms)
+}
+
 
 
 
@@ -710,14 +762,14 @@ $this.ban_msg = async function(evt, msg){
 async function save_banned_db(){
 
 	console.time('db backup')
-	var payload = []
+	const payload = []
 	console.log('saving shit')
 	await bandb.bans.each(msg => payload.push(msg.msgid));
 
 	// Filesaver dies from text Utf8Arrays, use Blobs instead
 	const blb = new Blob([lizard.strToUTF8Arr(payload.join('\n'))], {type: 'text/plain'});
 
-	var zip = new JSZip();
+	const zip = new JSZip();
 	zip.file('banned.ban', blb);
 	console.log('generating zip')
 	const zipped_file = await zip.generateAsync({

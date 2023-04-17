@@ -38,7 +38,7 @@
 		{
 			"selector": "#cinema_ds_main_window .cinema_ds_img_entry",
 			"function": "window.bootlegger.grid.maximize_image",
-			"pass_event": false,
+			"pass_event": true,
 			"pass_element": true,
 			"pass_params": ""
 		},

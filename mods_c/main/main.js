@@ -707,6 +707,55 @@ window.bootlegger.main.ban_msg = async function(evt, msg){
 
 
 
+window.bootlegger.main.temp_send_to_server = function(evt, elem){
+
+	console.log('saving to server')
+	if (evt.altKey){
+		console.log('alt key detected')
+		evt.preventDefault()
+	}else{
+		return
+	}
+	console.log('saving...')
+
+	// a little trick to convert any data type to array buffer
+	// the only reason this is done is because it's unclear whether the Tampermonkey
+	// API accepts blobs or not
+	const toblob = new Blob([elem.getAttribute('fullsize') || elem.getAttribute('blob_src')], {});
+	console.log('got fullsize:', elem.getAttribute('fullsize') || elem.getAttribute('blob_src'))
+	// const payload_buffer = await toblob.arrayBuffer()
+
+	// const sex = await fetch('/172.0.0.1:8000/htbin/srv.py', {
+	// 	'method': 'POST',
+	// 	'body': toblob,
+	// 	'mode': 'cors',
+	// 	'credentials': 'omit'
+	// })
+
+	// console.log('WHYYYYYY', await sex.text())
+
+	// request params
+	const rqprms = {
+		method: 'POST',
+		url: 'http://192.168.0.6:8027/htbin/srv.py',
+		nocache: true,
+		// responseType: 'arraybuffer',
+		anonymous: true,
+
+		// send payload
+		binary: true,
+		data: elem.getAttribute('fullsize') || elem.getAttribute('blob_src'),
+
+		// todo: separate this function?
+		onload: function(response) {
+			print('Server solution response', response.responseText)
+		}
+	}
+
+	// execute request
+	GM_xmlhttpRequest(rqprms)
+}
+
 
 
 

@@ -146,9 +146,9 @@ class gridmaker
 	}
 
 	del_page_from_cache(page_index){
-		if (!this.pages[page_index]){return false}
+		if (!this.pages[page_index]){return false};
 		console.time(`Deleted page ${page_index} from cache`)
-		for (var delcache in this.pages[page_index].media){
+		for (let delcache in this.pages[page_index].media){
 			if (delcache in $all.main.media_cache){
 				print('deleting', delcache, 'from cache', $all.main.media_cache[delcache].attr('src'), $all.main.media_cache[delcache].attr('fullsize'))
 				obj_url.revokeObjectURL($all.main.media_cache[delcache].attr('src'))
@@ -165,14 +165,14 @@ class gridmaker
 		// 9 + sides
 
 		// size of all the visible page numbers
-		const amt = 9
-		const list = (amt % 2) ? (amt + 1) : amt
+		const amt = 9;
+		const list = (amt % 2) ? (amt + 1) : amt;
 
-		const sides = Math.floor(list / 2)
+		const sides = Math.floor(list / 2);
 
-		var result = []
+		var result = [];
 
-		const pg_len = this.pages.length - 1
+		const pg_len = this.pages.length - 1;
 
 		// previous
 		result.push(`
@@ -189,8 +189,8 @@ class gridmaker
 		}
 		// left side
 		print('Left side:', (active_page_index - sides).clamp(0, 65535), active_page_index)
-		for (var pgl of range((active_page_index - sides).clamp(0, 65535), active_page_index)){
-			if (!this.pages[pgl]){break}
+		for (let pgl of range((active_page_index - sides).clamp(0, 65535), active_page_index)){
+			if (!this.pages[pgl]){break};
 			var p_index = pgl
 			result.push(`
 				<div page_index="${p_index}" class="cinemads_page">${p_index}</div>
@@ -202,15 +202,15 @@ class gridmaker
 		`)
 		// right side
 		print('Right side:', active_page_index, active_page_index + sides)
-		for (var pgr of range(active_page_index + 1, active_page_index + sides)){
-			if (!this.pages[pgr]){break}
+		for (let pgr of range(active_page_index + 1, active_page_index + sides)){
+			if (!this.pages[pgr]){break};
 			var p_index = pgr
 			result.push(`
 				<div page_index="${p_index}" class="cinemads_page">${p_index}</div>
 			`)
 		}
 		// last
-		// todo: why use not not ?
+		// todo: why not use not not ?
 		if ((pg_len - active_page_index) > sides){
 			result.push(`
 				<div class="cinemads_page_between">...</div>
@@ -278,8 +278,8 @@ class gridmaker
 	wipe_cache(){
 		console.time('Wiped all pages cache')
 		// todo: this a good reason to explore various ways of avoiding nested for loops
-		for (var page of this.pages){
-			for (var wipe_media in page.media){
+		for (let page of this.pages){
+			for (let wipe_media in page.media){
 				if (!$all.main.media_cache[wipe_media]){continue}
 				obj_url.revokeObjectURL($all.main.media_cache[wipe_media].attr('src'))
 				obj_url.revokeObjectURL($all.main.media_cache[wipe_media].attr('fullsize'))
@@ -314,7 +314,8 @@ $this.load_prev_page = function(){
 	$this.grid.prev_page()
 }
 
-$this.maximize_image = async function(tgt){
+$this.maximize_image = async function(evt, tgt){
+	if (evt.altKey){return};
 	$('body #cinema_ds_fullscreen').remove()
 	// $('body').append(`<img id="cinema_ds_fullscreen" src="${tgt.getAttribute('fullsize')}">`)
 	$('body').append(`<div id="cinema_ds_fullscreen" src=""></div>`)
@@ -332,8 +333,9 @@ $this.maximize_image = async function(tgt){
 	$('body #cinema_ds_fullscreen').replaceWith(`<img id="cinema_ds_fullscreen" src="${media_full}">`)
 }
 
-$this.maximize_video = function(tgt){
-	$('body #cinema_ds_fullscreen').remove()
+$this.maximize_video = function(evt, tgt){
+	if (evt.altKey){return};
+	$('body #cinema_ds_fullscreen').remove();
 	$('body').append(`<video id="cinema_ds_fullscreen" class="noclick" controls src="${tgt.getAttribute('src')}"></video>`)
 }
 
@@ -359,10 +361,10 @@ $this.chan_switch = function()
 
 $this.init = function(){
 	if (!$this.grid){
-		$this.grid = new gridmaker()
+		$this.grid = new gridmaker();
 		print('created new grid')
-		$this.grid.load_page(null)
-		$all.main.url_switch_protocol = $this.chan_switch
+		$this.grid.load_page(null);
+		$all.main.url_switch_protocol = $this.chan_switch;
 	}
 }
 
@@ -372,9 +374,10 @@ $this.page_switch = function(pgi){
 
 $this.close_video_fullscreen = function(evt){
 	if (evt.keyCode == 27){
-		const kill = document.getElementById('cinema_ds_fullscreen')
-		if (kill){
-			kill.remove()
-		}
+		// const kill = document.getElementById('cinema_ds_fullscreen')
+		// if (kill){
+		// 	kill.remove()
+		// }
+		$('#cinema_ds_fullscreen').remove()
 	}
 }
